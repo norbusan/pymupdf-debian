@@ -1,0 +1,6 @@
+pymupdf (1.14.16-1) UNRELEASED; urgency=medium
+
+  * Initial release. (Closes: #XXXXXX)
+  * New upstream release
+
+ -- Johannes 'josch' Schauer <josch@debian.org>  Sat, 08 Jun 2019 20:21:41 +0200
