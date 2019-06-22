@@ -1,0 +1,21 @@
+Source: pymupdf
+Section: python
+Maintainer: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
+Uploaders: Johannes 'josch' Schauer <josch@debian.org>
+Homepage: https://github.com/pymupdf/PyMuPDF
+Vcs-Browser: https://salsa.debian.org/python-team/modules/pymupdf
+Vcs-Git: https://salsa.debian.org/python-team/modules/pymupdf.git/
+Standards-Version: 4.3.0
+Build-Depends: debhelper-compat (= 12), dh-python, python3-setuptools, python3-all, libpython3-dev, libmupdf-dev, libjbig2dec-dev, libjpeg-dev, libfreetype6-dev, libpng-dev, libopenjp2-7-dev, libharfbuzz-dev, swig
+
+Package: python3-fitz
+Priority: optional
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}
+Description: Python binding for MuPDF
+ Allows one to access files in PDF, XPS, OpenXPS, CBZ, EPUB, and FB2 (e-books)
+ formats, and it is known for its top performance and high rendering quality.
+ .
+ PDF manipulation and generation functions are available, including metadata
+ and bookmark maintenance, document restructuring, annotation / link handling
+ and document or page creation.
