@@ -5,7 +5,7 @@ Uploaders: Johannes 'josch' Schauer <josch@debian.org>
 Homepage: https://github.com/pymupdf/PyMuPDF
 Vcs-Browser: https://salsa.debian.org/python-team/modules/pymupdf
 Vcs-Git: https://salsa.debian.org/python-team/modules/pymupdf.git/
-Standards-Version: 4.3.0
+Standards-Version: 4.4.0
 Build-Depends: debhelper-compat (= 12), dh-python, python3-setuptools, python3-all, libpython3-dev, libmupdf-dev, libjbig2dec-dev, libjpeg-dev, libfreetype6-dev, libpng-dev, libopenjp2-7-dev, libharfbuzz-dev, swig
 
 Package: python3-fitz
