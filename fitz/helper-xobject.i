@@ -1,14 +1,44 @@
 %{
 //-----------------------------------------------------------------------------
+// Read and concatenate a PDF page's /Conents object(s) in a buffer
+//-----------------------------------------------------------------------------
+fz_buffer *JM_read_contents(fz_context *ctx, pdf_obj *pageref)
+{
+    fz_buffer *res = NULL, *nres = NULL;
+    int i;
+    fz_try(ctx)
+    {
+        pdf_obj *contents = pdf_dict_get(ctx, pageref, PDF_NAME(Contents));
+        if (pdf_is_array(ctx, contents))     // maybe more than one!
+        {
+            res = fz_new_buffer(ctx, 1024);
+            for (i=0; i < pdf_array_len(ctx, contents); i++)
+            {
+                nres = pdf_load_stream(ctx, pdf_array_get(ctx, contents, i));
+                fz_append_buffer(ctx, res, nres);
+                fz_drop_buffer(ctx, nres);
+            }
+        }
+        else if (contents)
+        {
+            res = pdf_load_stream(ctx, contents);
+        }
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return res;
+}
+
+
+//-----------------------------------------------------------------------------
 // Make an XObject from a PDF page
 // For a positive xref assume that that object can be used instead
 //-----------------------------------------------------------------------------
 pdf_obj *JM_xobject_from_page(fz_context *ctx, pdf_document *pdfout, fz_page *fsrcpage, int xref, pdf_graft_map *gmap)
 {
-    fz_buffer *nres = NULL, *res = NULL;
+    fz_buffer *res = NULL;
     pdf_obj *xobj1, *contents = NULL, *resources = NULL, *o, *spageref;
     fz_rect mediabox;
-    int i;
+
     fz_try(ctx)
     {
         pdf_page *srcpage = pdf_page_from_fz_page(ctx, fsrcpage);
@@ -22,35 +52,21 @@ pdf_obj *JM_xobject_from_page(fz_context *ctx, pdf_document *pdfout, fz_page *fs
         else                 // need to create new XObject
         {
             // Deep-copy resources object of source page
-            o = pdf_dict_get(ctx, spageref, PDF_NAME(Resources));
+            o = pdf_dict_get_inheritable(ctx, spageref, PDF_NAME(Resources));
             if (gmap)        // use graftmap when possible
                 resources = pdf_graft_mapped_object(ctx, gmap, o);
             else
                 resources = pdf_graft_object(ctx, pdfout, o);
-            
-            // get spgage contents source; combine when several
-            contents = pdf_dict_get(ctx, spageref, PDF_NAME(Contents));
-            if (pdf_is_array(ctx, contents))     // more than one!
-            {
-                res = fz_new_buffer(ctx, 1024);
-                for (i=0; i < pdf_array_len(ctx, contents); i++)
-                {
-                    nres = pdf_load_stream(ctx, pdf_array_get(ctx, contents, i));
-                    fz_append_buffer(ctx, res, nres);
-                    fz_drop_buffer(ctx, nres);
-                }
-            }
-            else
-            {
-                res = pdf_load_stream(ctx, contents);
-            }
+
+            // get spgage contents source
+            res = JM_read_contents(ctx, spageref);
 
             //-------------------------------------------------------------
             // create XObject representing the source page
             //-------------------------------------------------------------
             xobj1 = pdf_new_xobject(ctx, pdfout, mediabox, fz_identity, NULL, res);
             // store spage contents
-            JM_update_stream(ctx, pdfout, xobj1, res);
+            JM_update_stream(ctx, pdfout, xobj1, res, 1);
             fz_drop_buffer(ctx, res);
 
             // store spage resources
@@ -92,7 +108,7 @@ int JM_insert_contents(fz_context *ctx, pdf_document *pdf,
                 if (contents) pdf_array_push(ctx, carr, contents);
                 pdf_array_push_drop(ctx, carr, newconts);
             }
-            else 
+            else
             {
                 pdf_array_push_drop(ctx, carr, newconts);
                 if (contents) pdf_array_push(ctx, carr, contents);
@@ -138,9 +154,9 @@ void JM_extend_contents(fz_context *ctx, pdf_document *pdfout,
             fz_append_buffer(ctx, endcont, oldcont);
         }
         fz_terminate_buffer(ctx, endcont);            // finalize result buffer
-    
+
         // now update the content stream
-        JM_update_stream(ctx, pdfout, contents, endcont);
+        JM_update_stream(ctx, pdfout, contents, endcont, 1);
     }
     fz_always(ctx)
     {
