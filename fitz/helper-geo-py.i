@@ -1,5 +1,5 @@
 %pythoncode %{
-class Matrix():
+class Matrix(object):
     """Matrix() - all zeros\nMatrix(a, b, c, d, e, f)\nMatrix(zoom-x, zoom-y) - zoom\nMatrix(shear-x, shear-y, 1) - shear\nMatrix(degree) - rotate\nMatrix(Matrix) - new copy\nMatrix(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -216,8 +216,9 @@ class Matrix():
         return len(m) == 6 and bool(self - m) is False
 
     def __abs__(self):
-        return math.sqrt(self.a*self.a + self.b*self.b + self.c*self.c + \
-                         self.d*self.d + self.e*self.e + self.f*self.f)
+        return math.sqrt(sum([c*c for c in self]))
+
+    norm = __abs__
 
     @property
     def isRectilinear(self):
@@ -257,7 +258,7 @@ class IdentityMatrix(Matrix):
 
 Identity = IdentityMatrix()
 
-class Point():
+class Point(object):
     """Point() - all zeros\nPoint(x, y)\nPoint(Point) - new copy\nPoint(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -386,6 +387,8 @@ class Point():
     def __abs__(self):
         return math.sqrt(self.x * self.x + self.y * self.y)
 
+    norm = __abs__
+
     def __add__(self, p):
         if hasattr(p, "__float__"):
             return Point(self.x + p, self.y + p)
@@ -420,7 +423,7 @@ class Point():
     def __hash__(self):
         return hash(tuple(self))
 
-class Rect():
+class Rect(object):
     """Rect() - all zeros\nRect(x0, y0, x1, y1)\nRect(top-left, x1, y1)\nRect(x0, y0, bottom-right)\nRect(top-left, bottom-right)\nRect(Rect or IRect) - new copy\nRect(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -590,6 +593,9 @@ class Rect():
             return 0.0
         return (self.x1 - self.x0) * (self.y1 - self.y0)
 
+    def norm(self):
+        return math.sqrt(sum([c*c for c in self]))
+
     def __add__(self, p):
         if hasattr(p, "__float__"):
             r = Rect(self.x0 + p, self.y0 + p, self.x1 + p, self.y1 + p)
@@ -749,7 +755,7 @@ class IRect(Rect):
     def __and__(self, x):
         return Rect.__and__(self, x).round()
 
-class Quad():
+class Quad(object):
     """Quad() - all zero points\nQuad(ul, ur, ll, lr)\nQuad(quad) - new copy\nQuad(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
