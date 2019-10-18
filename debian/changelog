@@ -1,6 +1,10 @@
 pymupdf (1.16.0-1) UNRELEASED; urgency=medium
 
+  [ Johannes 'josch' Schauer ]
   * debian/changelog
+
+  [ Ondřej Nový ]
+  * Bump Standards-Version to 4.4.1.
 
  -- Johannes 'josch' Schauer <josch@debian.org>  Tue, 27 Aug 2019 21:47:42 +0200
 
