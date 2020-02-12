@@ -1,50 +1,88 @@
-# PyMuPDF 1.16.0
+# PyMuPDF 1.16.10
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: August 31, 2019
+Release date: December 21, 2019
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
 On **[PyPI](https://pypi.org/project/PyMuPDF)** since August 2016: [![](https://pepy.tech/badge/pymupdf)](https://pepy.tech/project/pymupdf)
 
 # Authors
-* [Ruikai Liu](mailto:lrk700@gmail.com)
 * [Jorj X. McKie](mailto:jorj.x.mckie@outlook.de)
+* [Ruikai Liu](mailto:lrk700@gmail.com)
 
 # Introduction
 
-This is **version 1.16.0 of PyMuPDF (formerly python-fitz)**, a Python binding with support for [MuPDF 1.16.x](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
+This is **version 1.16.10 of PyMuPDF (formerly python-fitz)**, a Python binding with support for [MuPDF 1.16.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
 
 MuPDF can access files in PDF, XPS, OpenXPS, CBZ, EPUB and FB2 (e-books) formats, and it is known for its top performance and high rendering quality.
 
-With PyMuPDF you therefore can access files with extensions like ".pdf", ".xps", ".oxps", ".cbz", ".fb2" or ".epub" from your Python scripts.
+With PyMuPDF you can access files with extensions like ".pdf", ".xps", ".oxps", ".cbz", ".fb2" or ".epub". About 10 popular image formats are also supported via the document interface.
 
-See the [change log](https://pymupdf.readthedocs.io/en/latest/changes) and [usage recipes](https://pymupdf.readthedocs.io/en/latest/faq).
+
+# Usage and Documentation
+For all supported document types (i.e. including images) types you can
+* decrypt the document
+* access meta information, links and bookmarks
+* render pages in raster formats (PNG and some others), or the vector format SVG
+* search for text
+* extract text and images
+* convert to other formats: PDF, (X)HTML, XML, JSON, text
+
+> To some degree, PyMuPDF can therefore be used as an [image converter](https://github.com/pymupdf/PyMuPDF/wiki/How-to-Convert-Images): it can read a range of input formats and can produce **Portable Network Graphics (PNG)**, **Portable Anymaps** (**PNM**, etc.), **Portable Arbitrary Maps (PAM)**, **Adobe Postscript** and **Adobe Photoshop** documents, making the use of other graphics packages obselete in these cases. But interfacing with e.g. PIL/Pillow for image input and output is easy as well.
+
+**PDF files** can be created, joined or split up. Pages can be inserted, deleted, re-arranged or modified in many ways (including annotations and form fields).
+
+* Images and fonts can be extracted or inserted.
+* Embedded files are fully supported.
+* PDFs can be reformatted to support double-sided printing, posterizing, applying logos or watermarks
+* Password protection is fully supported: decryption, encryption, encryption method selection, permmission level and user / owner password setting.
+* Low-level PDF structures can be accessed and modified.
+* Starting with v1.16.10, PyMuPDF can also be used as a **module in the command line** using ``"python -m fitz ..."``. This is a versatile utility, which we will further develop over time. It currently supports PDF document
+
+    - **encryption / decryption / optimization**
+    - creating **sub-documents**
+    - document **joining**
+    - **image / font extraction**
+    - full support of **embedded files**.
+
+
+Have a look at the basic [demos](https://github.com/pymupdf/PyMuPDF/tree/master/demo), the [examples](https://github.com/pymupdf/PyMuPDF/tree/master/examples) (which contain complete, working programs), and the **recipes** section of our [Wiki](https://github.com/pymupdf/PyMuPDF/wiki) sidebar, which contains more than a dozen of guides in How-To-style.
+
+Our **documentation**, written using Sphinx, is available in various formats from the following sources. It currently is a combination of a reference guide and a user manual. For a **quick start** look at the [tutorial](https://pymupdf.readthedocs.io/en/latest/tutorial/) and the [recipes](https://pymupdf.readthedocs.io/en/latest/faq/) chapters.
+
+* You can view it online at [Read the Docs](https://pymupdf.readthedocs.io/). For **best quality downloads** you should however use the following links.
+* zipped [HTML](https://github.com/pymupdf/PyMuPDF/tree/master/doc/html.zip)
+* [Windows CHM](https://github.com/pymupdf/PyMuPDF-optional-material/tree/master/doc/PyMuPDF.chm)
+* [PDF](https://github.com/pymupdf/PyMuPDF/blob/master/doc/PyMuPDF.pdf)
 
 # Installation
 
-For all **Windows** and (thanks to our user **@jbarlow83**!) for the major **Mac OSX** and **Linux** versions we offer wheels in the [download section of PyPI](https://pypi.org/project/PyMuPDF/#files).
+For the major **Windows** and (thanks to our user **@jbarlow83**!) **Mac OSX** or **Linux** versions we offer wheels in the [download section of PyPI](https://pypi.org/project/PyMuPDF/#files).
 
-The platform tag for Mac OSX is `macosx_10_6_intel`.
+> The Mac OSX platform tags are `macosx_10_6_intel` (up to Python 3.7) or ``macosx_10_9_x86_64``. For Linux the tag is ``manylinux2010_x86_64``.
 
-The platform tag for Linux is `manylinux1_x86_64`, which makes these wheels usable on Debian, Ubuntu and most other variations.
+> As of November 2019 and starting with PyMuPDF v1.16.10, wheel creation is supported for Python 64bit versions 2.7, 3.5, 3.6, 3.7 and 3.8 only. **Support for Python 3.4 has been dropped.**
 
-On other operating systems you need to generate PyMuPDF yourself. And of course you can choose to do so for a wheel-supported platform, too.
+For other Python versions or operating systems you need to generate PyMuPDF yourself as follows (and of course you can choose to do so for a wheel-supported platform, too).
+
+This should work for all platforms which support Python and MuPDF. You need the development version of Python.
 
 To do this, you must download and generate MuPDF. This process depends very much on your system. For most platforms, the MuPDF source contains prepared procedures for achieving this. Please observe the following general steps:
 
 * Be sure to download the official MuPDF source release from [here](https://mupdf.com/downloads/archive). Do **not use** MuPDF's [GitHub repo](https://github.com/ArtifexSoftware/mupdf). It contains their current **development source**, which is **not compatible** with this PyMuPDF version most of the time.
 
-* The repo's `fitz` folder contains a few files whose names start with an underscore `"_"`. These files contain configuration data and hotfixes. Each one must be copy-renamed to its correct target location of the MuPDF source that you have downloaded, **before you generate MuPDF**. Currently, these files are:
+* This repo's `fitz` folder contains one or more files whose names start with a sinlge underscore `"_"`. These files contain configuration data and hotfixes. Each one must be copy-renamed to its correct target location **inside the MuPDF source** that you have downloaded, **before you generate MuPDF**. Currently, these files are:
   - fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
 
   - Now MuPDF can be generated.
 
-* Since PyMuPDF v1.14.17, the sources provided in this repository **no longer contain** the interface files ``fitz.py`` and ``fitz.wrap.c`` - they are generated **"on the fly"** by ``setup.py`` using the interface generator [SWIG](http://www.swig.org/). So you need SWIG being installed on your system. Please refer to issue #312 for a background.
+* Since PyMuPDF v1.14.17, the sources provided in this repository **no longer contain** the interface files ``fitz.py`` and ``fitz.wrap.c`` - they are instead generated **"on the fly"** by ``setup.py`` using the interface generator [SWIG](http://www.swig.org/). So you need SWIG being installed on your system. Please refer to issue #312 for some background.
+    - PyMuPDF wheels have been generated using **SWIG v4.0.1**.
 
-* If you do **not (want to) use SWIG** for generating PyMuPDF, please download the **sources from PyPI** - they continue to contain the interface files.
-    - Side note: those files have been generated using **SWIG v4.0.0**, which implements improvements regarding security and also generates a simpler ``fitz.py``. Our wheels are based on this SWIG version, too.
+
+* If you do **not (want to) use SWIG**, please download the **sources from PyPI** - they continue to contain those generated files, so installation should work like any other Python extension generation on your system.
 
 Once this is done, adjust directories in ``setup.py`` and run ``python setup.py install``.
 
@@ -61,32 +99,7 @@ Then you might need to ``export ARCHFLAGS='-arch x86_64'``, since ``libmupdf.a``
 Finally, please double check ``setup.py`` before building. Update ``include_dirs`` and ``library_dirs`` if necessary.
 
 ## MS Windows
-
 If you are looking to make your own binary, consult this [Wiki page](https://github.com/pymupdf/PyMuPDF/wiki/Windows-Binaries-Generation). It explains how to use Visual Studio for generating MuPDF in quite some detail.
-
-# Usage and Documentation
-For all document types you can render pages in raster (PNG) or vector (SVG) formats, extract text and images, and access meta information, links, annotations and bookmarks, as well as decrypt the document.
-
-For PDF files, most of these objects can also be created, modified or deleted. Plus you can rotate, re-arrange, duplicate, create, delete and split or join **pages** and you can **join or split PDF** documents.
-
-Specifically for **PDF files**, PyMuPDF also provides update access to **low-level structure** data, supports handling of embedded files and modification of **page contents** (like inserting images, fonts, text, annotations and drawings).
-
-Other features include embedding vector images (SVG, PDF) such as logos or watermarks, "posterizing" a PDF or creating "booklet" and "4-up" versions.
-
-You can also create and update **Form PDFs** and **form fields** with support for text, checkbox, listbox and combobox widgets.
-
-Starting with version 1.16.0, PDF password protection is **fully supported**: passwords, encryption methods and permission levels can be set, changed or removed.
-
-To some degree, PyMuPDF can also be used as an [image converter](https://github.com/pymupdf/PyMuPDF/wiki/How-to-Convert-Images): it can read a broad range of input formats and can produce **Portable Network Graphics (PNG)**, **Portable Anymaps** (**PNM**, etc.), **Portable Arbitrary Maps (PAM)**, **Adobe Postscript** and **Adobe Photoshop** documents, making the use of other graphics packages obselete in many cases. But interfacing with e.g. PIL/Pillow for image input and output is easy as well.
-
-Have a look at the basic [demos](https://github.com/pymupdf/PyMuPDF/tree/master/demo), the [examples](https://github.com/pymupdf/PyMuPDF/tree/master/examples) (which contain complete, working programs), and the **recipes** section of our [Wiki](https://github.com/pymupdf/PyMuPDF/wiki) sidebar, which contains more than a dozen of guides in How-To-style.
-
-Our **documentation**, written using Sphinx, is available in various formats from the following sources. It currently is a combination of a reference guide and a user manual. For a **quick start** look at the [tutorial](https://pymupdf.readthedocs.io/en/latest/tutorial/) and the [recipes](https://pymupdf.readthedocs.io/en/latest/faq/) chapters.
-
-* You can view it online at [Read the Docs](https://pymupdf.readthedocs.io/). For **best quality downloads** you should however use the following links.
-* zipped [HTML](https://github.com/pymupdf/PyMuPDF/tree/master/doc/html.zip)
-* [Windows CHM](https://github.com/pymupdf/PyMuPDF-optional-material/tree/master/doc/PyMuPDF.chm)
-* [PDF](https://github.com/pymupdf/PyMuPDF/blob/master/doc/PyMuPDF.pdf)
 
 # Earlier Versions
 Earlier versions are available in the [releases](https://github.com/pymupdf/PyMuPDF/releases) directory.

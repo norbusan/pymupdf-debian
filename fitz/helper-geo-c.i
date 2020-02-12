@@ -3,38 +3,10 @@
 //-----------------------------------------------------------------------------
 // Functions converting betwenn PySequences and fitz geometry objects
 //-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-// Incomplete - not in use
-//-----------------------------------------------------------------------------
-/*
-int JM_is_valid_quad(fz_quad q)
-{
-    fz_point b = fz_normalize_vector(fz_make_point(q.ur.x - q.ul.x, q.ur.y - q.ul.y));
-    if ((fabs(b.x) + fabs(b.y)) <= JM_EPS) return 0;  // empty quad!
-
-    fz_point c = fz_normalize_vector(fz_make_point(q.ll.x - q.ul.x, q.ll.y - q.ul.y));
-    if ((fabs(c.x) + fabs(c.y)) <= JM_EPS) return 0;  // empty quad!
-
-    if (fabs(b.x * c.x + b.y * c.y) > JM_EPS)
-        return 0;                                // angle at UL != 90 deg
-
-    b = fz_normalize_vector(fz_make_point(q.ur.x - q.lr.x, q.ur.y - q.lr.y));
-    c = fz_normalize_vector(fz_make_point(q.ll.x - q.lr.x, q.ll.y - q.lr.y));
-    if (fabs(b.x * c.x + b.y * c.y) > JM_EPS)
-        return 0;                                // angle at LR != 90 deg
-
-    b = fz_normalize_vector(fz_make_point(q.ul.x - q.ll.x, q.ul.y - q.ll.y));
-    c = fz_normalize_vector(fz_make_point(q.lr.x - q.ll.x, q.lr.y - q.ll.y));
-    if (fabs(b.x * c.x + b.y * c.y) > JM_EPS)
-        return 0;                                // angle at LL != 90 deg
-    return 1;
-}
-*/
 
 //-----------------------------------------------------------------------------
-// PySequence to quad. Default: quad of four (0, 0) points.
-// Four floats are treated as coordinates of a rect, and its corners will
-// define the quad. Four pairs of floats are taken to make a quad.
+// fz_quad from PySequence. Four-floats-seq is treated as rect.
+// Else must be four pairs of floats.
 //-----------------------------------------------------------------------------
 fz_quad JM_quad_from_py(PyObject *r)
 {
@@ -46,16 +18,16 @@ fz_quad JM_quad_from_py(PyObject *r)
     if (!PySequence_Check(r) || PySequence_Size(r) != 4)
         return q;
 
-    double x0 = PyFloat_AsDouble(PySequence_ITEM(r, 0));
+    float x0 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 0));
     if (!PyErr_Occurred())             // assume case 1: a rect is given
     {
-        double y0 = PyFloat_AsDouble(PySequence_ITEM(r, 1));
+        float y0 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 1));
         if (PyErr_Occurred()) goto return_simple;
 
-        double x1 = PyFloat_AsDouble(PySequence_ITEM(r, 2));
+        float x1 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 2));
         if (PyErr_Occurred()) goto return_simple;
 
-        double y1 = PyFloat_AsDouble(PySequence_ITEM(r, 3));
+        float y1 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 3));
         if (PyErr_Occurred()) goto return_simple;
 
         q.ul = fz_make_point(x0, y0);
@@ -76,11 +48,11 @@ fz_quad JM_quad_from_py(PyObject *r)
         if (!PySequence_Check(o) || PySequence_Size(o) != 2)
             goto weiter;
 
-        p[i].x = PyFloat_AsDouble(PySequence_ITEM(o, 0));
+        p[i].x = (float) PyFloat_AsDouble(PySequence_ITEM(o, 0));
         if (PyErr_Occurred())
             p[i].x = 0;
 
-        p[i].y = PyFloat_AsDouble(PySequence_ITEM(o, 1));
+        p[i].y = (float) PyFloat_AsDouble(PySequence_ITEM(o, 1));
         if (PyErr_Occurred())
             p[i].y = 0;
 
@@ -95,37 +67,40 @@ fz_quad JM_quad_from_py(PyObject *r)
     return q;
 }
 
+//-----------------------------------------------------------------------------
+// PySequence from fz_quad.
+//-----------------------------------------------------------------------------
 PyObject *JM_py_from_quad(fz_quad quad)
 {
-    PyObject *pquad = PyList_New(4);
-    PyList_SET_ITEM(pquad, 0, Py_BuildValue("[ff]", quad.ul.x, quad.ul.y));
-    PyList_SET_ITEM(pquad, 1, Py_BuildValue("[ff]", quad.ur.x, quad.ur.y));
-    PyList_SET_ITEM(pquad, 2, Py_BuildValue("[ff]", quad.ll.x, quad.ll.y));
-    PyList_SET_ITEM(pquad, 3, Py_BuildValue("[ff]", quad.lr.x, quad.lr.y));
+    PyObject *pquad = PyTuple_New(4);
+    PyTuple_SET_ITEM(pquad, 0, Py_BuildValue("ff", quad.ul.x, quad.ul.y));
+    PyTuple_SET_ITEM(pquad, 1, Py_BuildValue("ff", quad.ur.x, quad.ur.y));
+    PyTuple_SET_ITEM(pquad, 2, Py_BuildValue("ff", quad.ll.x, quad.ll.y));
+    PyTuple_SET_ITEM(pquad, 3, Py_BuildValue("ff", quad.lr.x, quad.lr.y));
     return pquad;
 }
 
 //-----------------------------------------------------------------------------
-// PySequence to rect. Default: infinite rect
+// PySequence to fz_rect. Default: infinite rect
 //-----------------------------------------------------------------------------
 fz_rect JM_rect_from_py(PyObject *r)
 {
     if (!PySequence_Check(r) || PySequence_Size(r) != 4)
         return fz_infinite_rect;
 
-    double x0 = PyFloat_AsDouble(PySequence_ITEM(r, 0));
+    float x0 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 0));
     if (PyErr_Occurred()) goto return_empty;
 
-    double y0 = PyFloat_AsDouble(PySequence_ITEM(r, 1));
+    float y0 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 1));
     if (PyErr_Occurred()) goto return_empty;
 
-    double x1 = PyFloat_AsDouble(PySequence_ITEM(r, 2));
+    float x1 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 2));
     if (PyErr_Occurred()) goto return_empty;
 
-    double y1 = PyFloat_AsDouble(PySequence_ITEM(r, 3));
+    float y1 = (float) PyFloat_AsDouble(PySequence_ITEM(r, 3));
     if (PyErr_Occurred()) goto return_empty;
 
-    return fz_make_rect((float) x0, (float) y0, (float) x1, (float) y1);
+    return fz_make_rect(x0, y0, x1, y1);
 
     return_empty: ;
     PyErr_Clear();
@@ -133,7 +108,7 @@ fz_rect JM_rect_from_py(PyObject *r)
 }
 
 //-----------------------------------------------------------------------------
-// fz_rect to PySequence
+// PySequence from fz_rect
 //-----------------------------------------------------------------------------
 PyObject *JM_py_from_rect(fz_rect r)
 {
@@ -148,19 +123,19 @@ fz_irect JM_irect_from_py(PyObject *r)
     if (!PySequence_Check(r) || PySequence_Size(r) != 4)
         return fz_infinite_irect;
 
-    long x0 = PyLong_AsLong(PySequence_ITEM(r, 0));
+    int x0 = (int) PyLong_AsLong(PySequence_ITEM(r, 0));
     if (PyErr_Occurred()) goto return_empty;
 
-    long y0 = PyLong_AsLong(PySequence_ITEM(r, 1));
+    int y0 = (int) PyLong_AsLong(PySequence_ITEM(r, 1));
     if (PyErr_Occurred()) goto return_empty;
 
-    long x1 = PyLong_AsLong(PySequence_ITEM(r, 2));
+    int x1 = (int) PyLong_AsLong(PySequence_ITEM(r, 2));
     if (PyErr_Occurred()) goto return_empty;
 
-    long y1 = PyLong_AsLong(PySequence_ITEM(r, 3));
+    int y1 = (int) PyLong_AsLong(PySequence_ITEM(r, 3));
     if (PyErr_Occurred()) goto return_empty;
 
-    return fz_make_irect((int) x0, (int) y0, (int) x1, (int) y1);
+    return fz_make_irect(x0, y0, x1, y1);
 
     return_empty: ;
     PyErr_Clear();
@@ -168,7 +143,7 @@ fz_irect JM_irect_from_py(PyObject *r)
 }
 
 //-----------------------------------------------------------------------------
-// fz_irect to PySequence
+// PySequence from fz_irect
 //-----------------------------------------------------------------------------
 PyObject *JM_py_from_irect(fz_irect r)
 {
@@ -185,13 +160,13 @@ fz_point JM_point_from_py(PyObject *p)
     if (!PySequence_Check(p) || PySequence_Size(p) != 2)
         return p0;
 
-    double x = PyFloat_AsDouble(PySequence_ITEM(p, 0));
+    float x = (float) PyFloat_AsDouble(PySequence_ITEM(p, 0));
     if (PyErr_Occurred()) goto zero_point;
 
-    double y = PyFloat_AsDouble(PySequence_ITEM(p, 1));
+    float y = (float) PyFloat_AsDouble(PySequence_ITEM(p, 1));
     if (PyErr_Occurred()) goto zero_point;
 
-    return fz_make_point((float) x, (float) y);
+    return fz_make_point(x, y);
 
     zero_point: ;
     PyErr_Clear();
@@ -199,7 +174,7 @@ fz_point JM_point_from_py(PyObject *p)
 }
 
 //-----------------------------------------------------------------------------
-// fz_point to PySequence
+// PySequence from fz_point
 //-----------------------------------------------------------------------------
 PyObject *JM_py_from_point(fz_point p)
 {
@@ -216,22 +191,22 @@ fz_matrix JM_matrix_from_py(PyObject *m)
     if (!PySequence_Check(m) || PySequence_Size(m) != 6)
         return m0;
 
-    double a = PyFloat_AsDouble(PySequence_ITEM(m, 0));
+    float a = (float) PyFloat_AsDouble(PySequence_ITEM(m, 0));
     if (PyErr_Occurred()) goto fertig;
 
-    double b = PyFloat_AsDouble(PySequence_ITEM(m, 1));
+    float b = (float) PyFloat_AsDouble(PySequence_ITEM(m, 1));
     if (PyErr_Occurred()) goto fertig;
 
-    double c = PyFloat_AsDouble(PySequence_ITEM(m, 2));
+    float c = (float) PyFloat_AsDouble(PySequence_ITEM(m, 2));
     if (PyErr_Occurred()) goto fertig;
 
-    double d = PyFloat_AsDouble(PySequence_ITEM(m, 3));
+    float d = (float) PyFloat_AsDouble(PySequence_ITEM(m, 3));
     if (PyErr_Occurred()) goto fertig;
 
-    double e = PyFloat_AsDouble(PySequence_ITEM(m, 4));
+    float e = (float) PyFloat_AsDouble(PySequence_ITEM(m, 4));
     if (PyErr_Occurred()) goto fertig;
 
-    double f = PyFloat_AsDouble(PySequence_ITEM(m, 5));
+    float f = (float) PyFloat_AsDouble(PySequence_ITEM(m, 5));
     if (PyErr_Occurred()) goto fertig;
 
     m0.a = a;
@@ -247,7 +222,7 @@ fz_matrix JM_matrix_from_py(PyObject *m)
 }
 
 //-----------------------------------------------------------------------------
-// fz_matrix to PySequence
+// PySequence from fz_matrix
 //-----------------------------------------------------------------------------
 PyObject *JM_py_from_matrix(fz_matrix m)
 {
