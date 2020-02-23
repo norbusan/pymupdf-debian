@@ -2,6 +2,8 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: PyMuPDF
 Upstream-Contact: Jorj X. McKie <jorj.x.mckie@outlook.de>
 Source: https://github.com/pymupdf/PyMuPDF/
+Files-Excluded: docs/_static
+                fitz/_config.h
 
 # upstream's clarification that indeed all material is GPL-3+ can be
 # found in this comment and the ones that follow:
