@@ -5,22 +5,21 @@ pymupdf (1.16.11-1) UNRELEASED; urgency=medium
   * Bump Standards-Version to 4.5.0
   * add debian/salsa-ci.yml
   * debian/control: b-d on libpython3-all-dev instead of libpython3-dev
-  * debian/copyright: remove Files-Excluded because upstream tarball does not
-    contain swig generated files anymore
+  * debian/copyright: remove unused files from Files-Excluded
   * add autopkgtest
-  * debian/control: fix typo
   * add patch fiximport
   * debian/control: add Rules-Requires-Root: no
-  * debian/patches/fiximport: add header
-  * debian/tests/control: chdir to / to not use fitz module from unpacked sources
+  * debian/tests/control: chdir to / to not use fitz module from unpacked
+    sources
   * add debian/python3-fitz.lintian-overrides
+  * debian/watch: add repacksuffix
 
   [ Bastian Germann ]
   * Drop non-existing examples
   * Exclude 1.16.11 files
   * Add docs patch
 
- -- Johannes 'josch' Schauer <josch@debian.org>  Sun, 23 Feb 2020 19:47:56 +0100
+ -- Johannes 'josch' Schauer <josch@debian.org>  Sun, 23 Feb 2020 20:01:27 +0100
 
 pymupdf (1.14.16-1) unstable; urgency=medium
 
