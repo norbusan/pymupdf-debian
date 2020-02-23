@@ -1,17 +1,67 @@
 %{
+
+int LIST_APPEND_DROP(PyObject *list, PyObject *item)
+{
+    if (!list || !PyList_Check(list) || !item) return -2;
+    int rc = PyList_Append(list, item);
+    Py_DECREF(item);
+    return rc;
+}
+
+int DICT_SETITEM_DROP(PyObject *dict, PyObject *key, PyObject *value)
+{
+    if (!dict || !PyDict_Check(dict) || !key || !value) return -2;
+    int rc = PyDict_SetItem(dict, key, value);
+    Py_DECREF(value);
+    return rc;
+}
+
+int DICT_SETITEMSTR_DROP(PyObject *dict, const char *key, PyObject *value)
+{
+    if (!dict || !PyDict_Check(dict) || !key || !value) return -2;
+    int rc = PyDict_SetItemString(dict, key, value);
+    Py_DECREF(value);
+    return rc;
+}
+
+PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
+{
+    if (!buff) return PyUnicode_FromString("");
+    unsigned char *s = NULL;
+    size_t len = fz_buffer_storage(ctx, buff, &s);
+    PyObject *val = PyUnicode_DecodeUnicodeEscape(s, (Py_ssize_t) len, "replace");
+    if (!val)
+    {
+        val = PyUnicode_FromString("");
+        PyErr_Clear();
+    }
+    return val;
+}
+
+PyObject *JM_EscapeStrFromStr(const char *c)
+{
+    if (!c) return PyUnicode_FromString("");
+    PyObject *val = PyUnicode_DecodeUnicodeEscape(c, (Py_ssize_t) strlen(c), "replace");
+    if (!val)
+    {
+        val = PyUnicode_FromString("");
+        PyErr_Clear();
+    }
+    return val;
+}
+
 // redirect MuPDF warnings
 void JM_mupdf_warning(void *user, const char *message)
 {
-    
-    PyObject *val = Py_BuildValue("s", message);
-    PyList_Append(JM_mupdf_warnings_store, val);
-    Py_DECREF(val);
+    LIST_APPEND_DROP(JM_mupdf_warnings_store, JM_EscapeStrFromStr(message));
 }
 
 // redirect MuPDF errors
 void JM_mupdf_error(void *user, const char *message)
 {
-    PySys_WriteStderr("mupdf: %s\n", message);
+    LIST_APPEND_DROP(JM_mupdf_warnings_store, JM_EscapeStrFromStr(message));
+    if (JM_mupdf_show_errors == Py_True)
+        PySys_WriteStderr("mupdf: %s\n", message);
 }
 
 // a simple tracer
@@ -106,41 +156,36 @@ PyObject *JM_fitz_config()
 #else
 #define have_TOFU_SIL JM_BOOL(1)
 #endif
-#if defined(NO_ICC)
-#define have_NO_ICC JM_BOOL(0)
-#else
-#define have_NO_ICC JM_BOOL(1)
-#endif
 #if defined(TOFU_BASE14)
 #define have_TOFU_BASE14 JM_BOOL(0)
 #else
 #define have_TOFU_BASE14 JM_BOOL(1)
 #endif
     PyObject *dict = PyDict_New();
-    PyDict_SetItemString(dict, "plotter-g", JM_BOOL(FZ_PLOTTERS_G));
-    PyDict_SetItemString(dict, "plotter-rgb", JM_BOOL(FZ_PLOTTERS_RGB));
-    PyDict_SetItemString(dict, "plotter-cmyk", JM_BOOL(FZ_PLOTTERS_CMYK));
-    PyDict_SetItemString(dict, "plotter-n", JM_BOOL(FZ_PLOTTERS_N));
-    PyDict_SetItemString(dict, "pdf", JM_BOOL(FZ_ENABLE_PDF));
-    PyDict_SetItemString(dict, "xps", JM_BOOL(FZ_ENABLE_XPS));
-    PyDict_SetItemString(dict, "svg", JM_BOOL(FZ_ENABLE_SVG));
-    PyDict_SetItemString(dict, "cbz", JM_BOOL(FZ_ENABLE_CBZ));
-    PyDict_SetItemString(dict, "img", JM_BOOL(FZ_ENABLE_IMG));
-    PyDict_SetItemString(dict, "html", JM_BOOL(FZ_ENABLE_HTML));
-    PyDict_SetItemString(dict, "epub", JM_BOOL(FZ_ENABLE_EPUB));
-    PyDict_SetItemString(dict, "jpx", JM_BOOL(FZ_ENABLE_JPX));
-    PyDict_SetItemString(dict, "js", JM_BOOL(FZ_ENABLE_JS));
-    PyDict_SetItemString(dict, "tofu", have_TOFU);
-    PyDict_SetItemString(dict, "tofu-cjk", have_TOFU_CJK);
-    PyDict_SetItemString(dict, "tofu-cjk-ext", have_TOFU_CJK_EXT);
-    PyDict_SetItemString(dict, "tofu-cjk-lang", have_TOFU_CJK_LANG);
-    PyDict_SetItemString(dict, "tofu-emoji", have_TOFU_EMOJI);
-    PyDict_SetItemString(dict, "tofu-historic", have_TOFU_HISTORIC);
-    PyDict_SetItemString(dict, "tofu-symbol", have_TOFU_SYMBOL);
-    PyDict_SetItemString(dict, "tofu-sil", have_TOFU_SIL);
-    PyDict_SetItemString(dict, "icc", have_NO_ICC);
-    PyDict_SetItemString(dict, "base14", have_TOFU_BASE14);
-    PyDict_SetItemString(dict, "py-memory", JM_BOOL(JM_MEMORY));
+    DICT_SETITEMSTR_DROP(dict, "plotter-g", JM_BOOL(FZ_PLOTTERS_G));
+    DICT_SETITEMSTR_DROP(dict, "plotter-rgb", JM_BOOL(FZ_PLOTTERS_RGB));
+    DICT_SETITEMSTR_DROP(dict, "plotter-cmyk", JM_BOOL(FZ_PLOTTERS_CMYK));
+    DICT_SETITEMSTR_DROP(dict, "plotter-n", JM_BOOL(FZ_PLOTTERS_N));
+    DICT_SETITEMSTR_DROP(dict, "pdf", JM_BOOL(FZ_ENABLE_PDF));
+    DICT_SETITEMSTR_DROP(dict, "xps", JM_BOOL(FZ_ENABLE_XPS));
+    DICT_SETITEMSTR_DROP(dict, "svg", JM_BOOL(FZ_ENABLE_SVG));
+    DICT_SETITEMSTR_DROP(dict, "cbz", JM_BOOL(FZ_ENABLE_CBZ));
+    DICT_SETITEMSTR_DROP(dict, "img", JM_BOOL(FZ_ENABLE_IMG));
+    DICT_SETITEMSTR_DROP(dict, "html", JM_BOOL(FZ_ENABLE_HTML));
+    DICT_SETITEMSTR_DROP(dict, "epub", JM_BOOL(FZ_ENABLE_EPUB));
+    DICT_SETITEMSTR_DROP(dict, "jpx", JM_BOOL(FZ_ENABLE_JPX));
+    DICT_SETITEMSTR_DROP(dict, "js", JM_BOOL(FZ_ENABLE_JS));
+    DICT_SETITEMSTR_DROP(dict, "tofu", have_TOFU);
+    DICT_SETITEMSTR_DROP(dict, "tofu-cjk", have_TOFU_CJK);
+    DICT_SETITEMSTR_DROP(dict, "tofu-cjk-ext", have_TOFU_CJK_EXT);
+    DICT_SETITEMSTR_DROP(dict, "tofu-cjk-lang", have_TOFU_CJK_LANG);
+    DICT_SETITEMSTR_DROP(dict, "tofu-emoji", have_TOFU_EMOJI);
+    DICT_SETITEMSTR_DROP(dict, "tofu-historic", have_TOFU_HISTORIC);
+    DICT_SETITEMSTR_DROP(dict, "tofu-symbol", have_TOFU_SYMBOL);
+    DICT_SETITEMSTR_DROP(dict, "tofu-sil", have_TOFU_SIL);
+    DICT_SETITEMSTR_DROP(dict, "icc", JM_BOOL(FZ_ENABLE_ICC));
+    DICT_SETITEMSTR_DROP(dict, "base14", have_TOFU_BASE14);
+    DICT_SETITEMSTR_DROP(dict, "py-memory", JM_BOOL(JM_MEMORY));
     return dict;
 }
 
@@ -226,15 +271,13 @@ PyObject *JM_BinFromBuffer(fz_context *ctx, fz_buffer *buffer)
  #define PyBytes_FromStringAndSize(c, l) PyString_FromStringAndSize(c, l)
 #endif
 
-    PyObject *bytes = PyBytes_FromString("");
-    if (buffer)
+    if (!buffer)
     {
-        char *c = NULL;
-        size_t len = fz_buffer_storage(gctx, buffer, &c);
-        Py_DECREF(bytes);
-        bytes = PyBytes_FromStringAndSize(c, (Py_ssize_t) len);
+        return PyBytes_FromString("");
     }
-    return bytes;
+    char *c = NULL;
+    size_t len = fz_buffer_storage(gctx, buffer, &c);
+    return PyBytes_FromStringAndSize(c, (Py_ssize_t) len);
 }
 
 //----------------------------------------------------------------------------
@@ -242,15 +285,13 @@ PyObject *JM_BinFromBuffer(fz_context *ctx, fz_buffer *buffer)
 //----------------------------------------------------------------------------
 PyObject *JM_BArrayFromBuffer(fz_context *ctx, fz_buffer *buffer)
 {
-    PyObject *bytes = PyByteArray_FromObject(Py_BuildValue("s", ""));
-    char *c = NULL;
-    if (buffer)
+    if (!buffer)
     {
-        size_t len = fz_buffer_storage(ctx, buffer, &c);
-        Py_DECREF(bytes);
-        bytes = PyByteArray_FromStringAndSize(c, (Py_ssize_t) len);
+        return PyByteArray_FromStringAndSize("", 0);
     }
-    return bytes;
+    char *c = NULL;
+    size_t len = fz_buffer_storage(ctx, buffer, &c);
+    return PyByteArray_FromStringAndSize(c, (Py_ssize_t) len);
 }
 
 //----------------------------------------------------------------------------
@@ -330,65 +371,6 @@ void JM_update_stream(fz_context *ctx, pdf_document *doc, pdf_obj *obj, fz_buffe
 }
 
 //-----------------------------------------------------------------------------
-// Version of fz_new_pixmap_from_display_list (util.c) to support rendering
-// of only the 'clip' part of the displaylist rectangle
-//-----------------------------------------------------------------------------
-fz_pixmap *
-JM_pixmap_from_display_list(fz_context *ctx,
-                            fz_display_list *list,
-                            PyObject *ctm,
-                            fz_colorspace *cs,
-                            int alpha,
-                            PyObject *clip
-                           )
-{
-    fz_rect rect = fz_bound_display_list(ctx, list);
-    fz_matrix matrix = JM_matrix_from_py(ctm);
-    fz_pixmap *pix = NULL;
-    fz_var(pix);
-    fz_device *dev = NULL;
-    fz_var(dev);
-    fz_separations *seps = NULL;
-    fz_rect rclip = JM_rect_from_py(clip);
-    rect = fz_intersect_rect(rect, rclip);  // no-op if clip is not given
-
-    rect = fz_transform_rect(rect, matrix);
-    fz_irect irect = fz_round_rect(rect);
-
-    pix = fz_new_pixmap_with_bbox(ctx, cs, irect, seps, alpha);
-    if (alpha)
-        fz_clear_pixmap(ctx, pix);
-    else
-        fz_clear_pixmap_with_value(ctx, pix, 0xFF);
-
-    fz_try(ctx)
-    {
-        if (!fz_is_infinite_rect(rclip))
-        {
-            dev = fz_new_draw_device_with_bbox(ctx, matrix, pix, &irect);
-            fz_run_display_list(ctx, list, dev, fz_identity, rclip, NULL);
-        }
-        else
-        {
-            dev = fz_new_draw_device(ctx, matrix, pix);
-            fz_run_display_list(ctx, list, dev, fz_identity, fz_infinite_rect, NULL);
-        }
-
-        fz_close_device(ctx, dev);
-    }
-    fz_always(ctx)
-    {
-        fz_drop_device(ctx, dev);
-    }
-    fz_catch(ctx)
-    {
-        fz_drop_pixmap(ctx, pix);
-        fz_rethrow(ctx);
-    }
-    return pix;
-}
-
-//-----------------------------------------------------------------------------
 // return hex characters for n characters in input 'in'
 //-----------------------------------------------------------------------------
 void hexlify(int n, unsigned char *in, unsigned char *out)
@@ -411,7 +393,7 @@ void hexlify(int n, unsigned char *in, unsigned char *out)
 fz_buffer *JM_BufferFromBytes(fz_context *ctx, PyObject *stream)
 {
     if (!stream) return NULL;
-    if (stream == NONE) return NULL;
+    if (stream == Py_None) return NULL;
     char *c = NULL;
     PyObject *mybytes = NULL;
     size_t len = 0;
@@ -625,12 +607,9 @@ PyObject *JM_outline_xrefs(fz_context *ctx, pdf_obj *obj, PyObject *xrefs)
     pdf_obj *first, *parent, *thisobj;
     if (!obj) return xrefs;
     thisobj = obj;
-    PyObject *val;
     while (thisobj)
     {
-        val = Py_BuildValue("i", pdf_to_num(ctx, thisobj));
-        PyList_Append(xrefs, val);
-        Py_DECREF(val);
+        LIST_APPEND_DROP(xrefs, Py_BuildValue("i", pdf_to_num(ctx, thisobj)));
         first = pdf_dict_get(ctx, thisobj, PDF_NAME(First));   // try go down
         if (first) xrefs = JM_outline_xrefs(ctx, first, xrefs);
         thisobj = pdf_dict_get(ctx, thisobj, PDF_NAME(Next));  // try go next

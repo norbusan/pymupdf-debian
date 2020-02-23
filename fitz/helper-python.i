@@ -33,6 +33,7 @@ TEXT_OUTPUT_XHTML   = 4
 TEXT_PRESERVE_LIGATURES  = 1
 TEXT_PRESERVE_WHITESPACE = 2
 TEXT_PRESERVE_IMAGES     = 4
+TEXT_INHIBIT_SPACES      = 8
 
 #------------------------------------------------------------------------------
 # Simple text encoding options
@@ -101,7 +102,7 @@ def _toc_remove_page(toc, first, last):
     count = last - first + 1  # number of pages to remove
     # step 1: remove numbers from toc
     for t in toc:
-        if first <= t[2] <= last:  # skip these entries
+        if first <= t[2] <= last:  # skip entries between first and last
             continue
         if t[2] < first:  # keep smaller page numbers
             toc2.append(t)
@@ -119,9 +120,9 @@ def _toc_remove_page(toc, first, last):
 
     # step 2: deal with hierarchy lvl gaps > 1
     for t in toc2:
-        while t[0] - old_lvl > 1:
-            old_lvl += 1
-            toc3.append([old_lvl] + t[1:])
+        while t[0] - old_lvl > 1:  # lvl gap too large
+            old_lvl += 1  # increase previous lvl
+            toc3.append([old_lvl] + t[1:])  # insert a filler item
         old_lvl = t[0]
         toc3.append(t)
 
@@ -147,16 +148,16 @@ def getTextlength(text, fontname="helv", fontsize=11, encoding=0):
     if basename == "ZapfDingbats":
         glyphs = zapf_glyphs
     if glyphs is not None:
-        w = sum([glyphs[ord(c)][1] if ord(c)<256 else glyphs[183][1] for c in text])
+        w = sum([glyphs[ord(c)][1] if ord(c) < 256 else glyphs[183][1] for c in text])
         return w * fontsize
 
     if fontname in Base14_fontdict.keys():
         return TOOLS.measure_string(text, Base14_fontdict[fontname], fontsize, encoding)
 
-    if fontname in ["china-t", "china-s",
+    if fontname in ("china-t", "china-s",
                     "china-ts", "china-ss",
                     "japan", "japan-s",
-                    "korea", "korea-s"]:
+                    "korea", "korea-s"):
         return len(text) * fontsize
 
     raise ValueError("Font '%s' is unsupported" % fontname)
@@ -365,7 +366,7 @@ def getPDFstr(s):
     def make_utf16be(s):
         r = hexlify(bytearray([254, 255]) + bytearray(s, "UTF-16BE"))
         t = r if fitz_py2 else r.decode()
-        return "<" + t + ">"                         # brackets indicate hex
+        return "<" + t + ">"  # brackets indicate hex
 
 
     # following either returns original string with mixed-in
@@ -374,33 +375,32 @@ def getPDFstr(s):
     r = ""
     for c in s:
         oc = ord(c)
-        if oc > 255:                                  # shortcut if beyond code range
+        if oc > 255:  # shortcut if beyond 8-bit code range
             return make_utf16be(s)
 
-        if oc > 31 and oc < 127:
-            if c in ("(", ")", "\\"):
+        if oc > 31 and oc < 127:  # in ASCII range
+            if c in ("(", ")", "\\"):  # these need to be escaped
                 r += "\\"
             r += c
             continue
 
-        if oc > 127:
-            r += "\\" + oct(oc)[-3:]
+        if oc > 127:  # beyond ASCII
+            r += "\\%03o" % oc
             continue
 
-        if oc < 8 or oc > 13 or oc == 11 or c == 127:
-            r += "\\267"   # indicate unsupported char
-            continue
-
-        if oc == 8:
+        # now the white spaces
+        if oc == 8:  # backspace
             r += "\\b"
-        elif oc == 9:
+        elif oc == 9:  # tab
             r += "\\t"
-        elif oc == 10:
+        elif oc == 10:  # line feed
             r += "\\n"
-        elif oc == 12:
+        elif oc == 12:  # form feed
             r += "\\f"
-        elif oc == 13:
+        elif oc == 13:  # carriage return
             r += "\\r"
+        else:
+            r += "\\267"  # unsupported: replace by 0xB7
 
     return "(" + r + ")"
 
@@ -416,33 +416,34 @@ def getTJstr(text, glyphs, simple, ordering):
                 ZapfDingbats)
         not simple: ordering < 0: 4-chars, use glyphs not char codes
                     ordering >=0: a CJK font! 4 chars, use char codes as glyphs
-"""
+    """
     if text.startswith("[<") and text.endswith(">]"): # already done
         return text
 
     if not bool(text):
         return "[<>]"
 
-    if simple:
-        if glyphs is None:             # simple and not Symbol / ZapfDingbats
-            otxt = "".join([hex(ord(c))[2:].rjust(2, "0") if ord(c)<256 else "b7" for c in text])
-        else:                          # Symbol or ZapfDingbats
-            otxt = "".join([hex(glyphs[ord(c)][0])[2:].rjust(2, "0") if ord(c)<256 else "b7" for c in text])
+    if simple:  # each char or its glyph is coded as a 2-byte hex
+        if glyphs is None:  # not Symbol, not ZapfDingbats: use char code
+            otxt = "".join(["%02x" % ord(c) if ord(c) < 256 else "b7" for c in text])
+        else:  # Symbol or ZapfDingbats: use glyphs
+            otxt = "".join(["%02x" % glyphs[ord(c)][0] if ord(c) < 256 else "b7" for c in text])
         return "[<" + otxt + ">]"
 
-    if ordering < 0:                   # not a CJK font: use the glyphs
-        otxt = "".join([hex(glyphs[ord(c)][0])[2:].rjust(4, "0") for c in text])
-    else:                              # CJK: use char codes, no glyphs
-        otxt = "".join([hex(ord(c))[2:].rjust(4, "0") for c in text])
+    # non-simple fonts: each char or its glyph is coded as 4-byte hex
+    if ordering < 0:  # not a CJK font: use the glyphs
+        otxt = "".join(["%04x" % glyphs[ord(c)][0] for c in text])
+    else:  # CJK: use the char codes
+        otxt = "".join(["%04x" % ord(c) for c in text])
 
     return "[<" + otxt + ">]"
 
-'''
+"""
 Information taken from the following web sites:
 www.din-formate.de
 www.din-formate.info/amerikanische-formate.html
 www.directtools.de/wissen/normen/iso.htm
-'''
+"""
 paperSizes = { # known paper formats @ 72 dpi
         'a0': (2384, 3370),
         'a1': (1684, 2384),
@@ -490,9 +491,12 @@ paperSizes = { # known paper formats @ 72 dpi
         'tabloid-extra': (864, 1296),
         }
 def PaperSize(s):
-    """Return a tuple (width, height) for a given paper format string. 'A4-L' will
-    return (842, 595), the values for A4 landscape. Suffix '-P' and no suffix
-    returns portrait."""
+    """Return a tuple (width, height) for a given paper format string.
+    
+    Notes:
+        'A4-L' will return (842, 595), the values for A4 landscape.
+        Suffix '-P' and no suffix return the portrait tuple.
+    """
     size = s.lower()
     f = "p"
     if size.endswith("-l"):
@@ -564,6 +568,7 @@ def CheckFont(page, fontname):
         if f[3].lower() == fontname.lower():
             return f
 
+
 def CheckFontInfo(doc, xref):
     """Return a font info if present in the document.
     """
@@ -586,6 +591,22 @@ def UpdateFontInfo(doc, info):
 
 def DUMMY(*args, **kw):
     return
+
+
+def planishLine(p1, p2):
+    """Return matrix which flattens out the line from p1 to p2.
+
+    Args:
+        p1, p2: point_like
+    Returns:
+        Matrix which maps p1 to Point(0,0) and p2 to a point on the x axis at
+        the same distance to Point(0,0). Will always combine a rotation and a
+        transformation.
+    """ 
+    p1 = Point(p1)
+    p2 = Point(p2)
+    return TOOLS._hor_matrix(p1, p2)
+
 
 def ImageProperties(img):
     """ Return basic properties of an image.
@@ -672,122 +693,5 @@ def ConversionTrailer(i):
         r = text
 
     return r
-
-def _make_textpage_dict(TextPage, raw=False):
-    """ Return a dictionary representing all text on a page.
-
-    Notes:
-        A number of precautions is taken to keep memory consumption under
-        control. E.g. when calling utility functions, we provide empty lists
-        to be filled by them. This ensures that garbage collection on the
-        Python level knows them, when taking appropriate action.
-        The utility functions themselves strictly return flat structures (e.g.
-        no dictionaries, no nested lists) to prevent sub-structures that are
-        not reachable by gc.
-    Args:
-        raw: bool which causes inclusion of a dictionary per each character.
-    Returns:
-        dict
-    """
-    page_dict = {"width": TextPage.rect.width, "height": TextPage.rect.height}
-    blocks = []
-    num_blocks = TextPage._getBlockList(blocks)
-    block_list = []
-    for i in range(num_blocks):
-        block = blocks[i]
-        block_dict = {"type": block[0], "bbox": block[1:5]}
-        lines = []  # prepare output for the block details
-
-        # ---------------------------------------------------------------------
-        # handle an image block
-        # ---------------------------------------------------------------------
-        if block[0] == 1:
-            rc = TextPage._getImageBlock(i, lines)  # read block data
-            if rc != 0:  # any problem?
-                raise ValueError("could not extract image block %i" % i)
-            ilist = lines[0]  # the tuple we want
-            block_dict["width"] = ilist[1]
-            block_dict["height"] = ilist[2]
-            block_dict["ext"] = ilist[3]
-            block_dict["image"] = ilist[4]
-            block_list.append(block_dict)  # append image block to list
-            continue  # to next block
-
-        # ---------------------------------------------------------------------
-        # handle a text block
-        # ---------------------------------------------------------------------
-        num_lines = TextPage._getLineList(i, lines)  # read its line array
-        line_list = []  # list of line dictionaries
-
-        for j in range(num_lines):
-            line = lines[j]
-            line_dict = {"wmode": line[0], "dir": line[1:3], "bbox": line[3:]}
-            span_list = []
-            characters = []
-            TextPage._getCharList(i, j, characters)
-            old_style = ()
-            span = {}
-            char_list = []  # list of char dicts of span
-            text = ""  # the text of a span
-            span_bbox = Rect()  # bbox of a span
-
-            for char in characters:  # iterate through the characters
-                style = char[6:10]  # font info
-                pos = style[2].find("+")  # remove any garbage from font
-                if pos > 0:
-                    style = list(style)
-                    style[2] = style[2][pos+1:]
-
-                # check if the character style has changed
-                if style != old_style:
-
-                    # check for first span
-                    if old_style != ():  # finish previous span first
-                        if raw:
-                            span["chars"] = char_list  # char dictionaries
-                            char_list = []  # reset char dict list
-                        else:
-                            span["text"] = text  # accumulated text
-                            text = ""  # reset text field
-
-                        span["bbox"] = tuple(span_bbox)  # put in bbox
-                        span_list.append(span)  # output previous span
-
-                    # init a new span
-                    span = {"size": style[0],
-                            "flags": style[1],
-                            "font": style[2],
-                            "color": style[3]
-                           }
-                    old_style = style
-                    span_bbox = Rect()  # reset span bbox
-
-
-                span_bbox |= char[2:6]  # extend span bbox
-                if raw:
-                    char_dict = {"origin": char[:2], "bbox": char[2:6], "c": char[-1]}
-                    char_list.append(char_dict)
-                else:
-                    text += char[-1]
-
-            # all characters in line have been processed now
-            if max(len(char_list), len(text)) > 0:  # chars missing in outut?
-                if raw:
-                    span["chars"] = char_list
-                else:
-                    span["text"] = text
-
-                span["bbox"] = tuple(span_bbox)  # put in bbox
-                span_list.append(span)
-
-            line_dict["spans"] = span_list  # put list of spans in line dict
-            line_list.append(line_dict)  # append line dict to list of lines
-
-        block_dict["lines"] = line_list
-        block_list.append(block_dict)
-
-    page_dict["blocks"] = block_list
-
-    return page_dict
 
 %}
