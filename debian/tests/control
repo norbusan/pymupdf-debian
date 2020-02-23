@@ -1,0 +1,4 @@
+Test-Command: python3 -c "import fitz"
+Restrictions: allow-stderr
+Depends: python3-fitz
+Features: test-name=python3-fitz
