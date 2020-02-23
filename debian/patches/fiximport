@@ -1,0 +1,9 @@
+--- a/fitz/__init__.py
++++ b/fitz/__init__.py
+@@ -1,5 +1,6 @@
+ from __future__ import absolute_import, print_function
+ import sys
++import fitz.fitz as fitz
+ from fitz.fitz import *
+ 
+ # define the supported colorspaces for convenience
