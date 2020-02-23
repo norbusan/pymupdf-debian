@@ -1,3 +1,11 @@
+Author: Johannes 'josch' Schauer <josch@debian.org>
+Description: add additional import statement as otherwise you'd get:
+ Traceback (most recent call last):
+   File "<string>", line 1, in <module>
+   File "[...]/src/fitz/__init__.py", line 3, in <module>
+     from fitz.fitz import *
+ ModuleNotFoundError: No module named 'fitz.fitz'
+
 --- a/fitz/__init__.py
 +++ b/fitz/__init__.py
 @@ -1,5 +1,6 @@
