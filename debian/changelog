@@ -1,12 +1,14 @@
-pymupdf (1.16.0-1) UNRELEASED; urgency=medium
+pymupdf (1.16.1-1) UNRELEASED; urgency=medium
 
-  [ Johannes 'josch' Schauer ]
-  * debian/changelog
+  * New upstream version 1.16.1
+  * Bump Standards-Version to 4.5.0
+  * add debian/salsa-ci.yml
+  * debian/control: b-d on libpython3-all-dev instead of libpython3-dev
+  * debian/copyright: remove Files-Excluded because upstream tarball does not
+    contain swig generated files anymore
+  * fix b-d on libmupdf-dev to only allow version 1.16.1
 
-  [ Ondřej Nový ]
-  * Bump Standards-Version to 4.4.1.
-
- -- Johannes 'josch' Schauer <josch@debian.org>  Tue, 27 Aug 2019 21:47:42 +0200
+ -- Johannes 'josch' Schauer <josch@debian.org>  Sun, 23 Feb 2020 18:40:53 +0100
 
 pymupdf (1.14.16-1) unstable; urgency=medium
 
