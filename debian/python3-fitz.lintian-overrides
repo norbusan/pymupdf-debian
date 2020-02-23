@@ -1,0 +1,5 @@
+# all false positives
+python3-fitz: spelling-error-in-binary usr/lib/python3/dist-packages/fitz/_fitz.cpython-*.so SyLES Styles
+python3-fitz: spelling-error-in-binary usr/lib/python3/dist-packages/fitz/_fitz.cpython-*.so Yau You
+python3-fitz: spelling-error-in-binary usr/lib/python3/dist-packages/fitz/_fitz.cpython-*.so moR more
+python3-fitz: spelling-error-in-binary usr/lib/python3/dist-packages/fitz/_fitz.cpython-*.so pres press
