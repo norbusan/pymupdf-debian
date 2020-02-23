@@ -1,4 +1,4 @@
 version=4
-opts="filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%PyMuPDF-$1.tar.gz%" \
+opts="filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%PyMuPDF-$1.tar.gz%,dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1" \
              https://github.com/pymupdf/PyMuPDF/tags \
              (?:.*?/)?v?(\d[\d.]*)\.tar\.gz debian uupdate
