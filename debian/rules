@@ -4,5 +4,8 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 
+override_dh_gencontrol:
+	dh_gencontrol -- -VBuilt-Using="$(shell dpkg-query -f '$${source:Package} (= $${source:Version}), ' -W libmupdf-dev)"
+
 %:
 	dh $@ --buildsystem=pybuild --with python3
