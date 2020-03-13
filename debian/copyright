@@ -10,7 +10,7 @@ Files-Excluded: docs/_static
 # https://github.com/pymupdf/PyMuPDF/issues/312#issuecomment-504641426
 Files: *
 Copyright: 2012-2018 Ruikai Liu <lrk700@gmail.com>
-           2015-2019 Jorj X. McKie <jorj.x.mckie@outlook.de>
+           2015-2020 Jorj X. McKie <jorj.x.mckie@outlook.de>
 License: GPL-3+
 
 Files: debian/*
