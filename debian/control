@@ -13,6 +13,7 @@ Package: python3-fitz
 Priority: optional
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}
+Provides: ${python3:Provides}
 Description: Python binding for MuPDF
  Allows one to access files in PDF, XPS, OpenXPS, CBZ, EPUB, and FB2 (e-books)
  formats, and it is known for its top performance and high rendering quality.
