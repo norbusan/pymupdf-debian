@@ -1,11 +1,15 @@
-pymupdf (1.16.12+ds1-1) UNRELEASED; urgency=medium
+pymupdf (1.16.13+ds1-0.1) unstable; urgency=medium
 
+  [ Bastian Germann ]
   * New upstream version 1.16.12+ds1
   * Use debhelper provided python3:Provides
   * Set Built-Using according to Policy 7.8
   * Update upstream copyright info
 
- -- Bastian Germann <bastiangermann@fishpost.de>  Fri, 13 Mar 2020 22:42:12 +0100
+  [ Norbert Preining ]
+  * New upstream version 1.16.13+ds1
+
+ -- Norbert Preining <norbert@preining.info>  Tue, 17 Mar 2020 13:52:12 +0900
 
 pymupdf (1.16.11-1) unstable; urgency=medium
 
