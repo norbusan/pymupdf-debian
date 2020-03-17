@@ -1,14 +1,16 @@
 Description: [PATCH] Prevent docs build warnings
 
-diff --git a/docs/conf.py b/docs/conf.py
-index 1175edf..e726f8d 100644
---- a/docs/conf.py
-+++ b/docs/conf.py
+---
+ docs/conf.py |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- pymupdf-debian.git.orig/docs/conf.py
++++ pymupdf-debian.git/docs/conf.py
 @@ -128,12 +128,12 @@ html_theme_options = {
  # The name of an image file (within the static path) to use as favicon of the
  # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
  # pixels large.
--html_favicon = "pymupdf.ico"
+-html_favicon = "Pymupdf.ico"
 +html_favicon = "PyMuPDF.ico"
  
  # Add any paths that contain custom static files (such as style sheets) here,
