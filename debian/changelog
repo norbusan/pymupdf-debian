@@ -1,4 +1,4 @@
-pymupdf (1.16.13+ds1-0.1) unstable; urgency=medium
+pymupdf (1.16.14+ds1-0.1) unstable; urgency=medium
 
   [ Bastian Germann ]
   * New upstream version 1.16.12+ds1
@@ -7,9 +7,9 @@ pymupdf (1.16.13+ds1-0.1) unstable; urgency=medium
   * Update upstream copyright info
 
   [ Norbert Preining ]
-  * New upstream version 1.16.13+ds1
+  * New upstream version 1.16.1{3,4}+ds1
 
- -- Norbert Preining <norbert@preining.info>  Tue, 17 Mar 2020 13:52:12 +0900
+ -- Norbert Preining <norbert@preining.info>  Thu, 26 Mar 2020 05:52:40 +0900
 
 pymupdf (1.16.11-1) unstable; urgency=medium
 
