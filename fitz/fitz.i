@@ -101,7 +101,7 @@ from __future__ import division, print_function
   #define FLT_EPSILON 1e-5
 #endif
 
-#define return_none return Py_BuildValue("s", NULL)
+#define return_none Py_RETURN_NONE
 #define SWIG_FILE_WITH_INIT
 #define SWIG_PYTHON_2_UNICODE
 
@@ -128,7 +128,6 @@ from __future__ import division, print_function
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
 
 #define JM_PyErr_Clear if (PyErr_Occurred()) PyErr_Clear()
-#define JM_UNICODE(data) JM_EscapeStrFromStr(data)
 
 // binary output depends on Python major
 # if PY_VERSION_HEX >= 0x03000000
@@ -501,7 +500,7 @@ struct fz_document_s
                     int i, n = pdf_array_len(gctx, names);
                     for (i=0; i < n; i+=2)
                     {
-                        val = JM_UNICODE(pdf_to_text_string(gctx,
+                        val = JM_EscapeStrFromStr(pdf_to_text_string(gctx,
                                          pdf_array_get(gctx, names, i)));
                         LIST_APPEND_DROP(namelist, val);
                     }
@@ -548,15 +547,15 @@ struct fz_document_s
 
                 name = (char *) pdf_to_text_string(gctx,
                                           pdf_dict_get(gctx, o, PDF_NAME(F)));
-                DICT_SETITEM_DROP(infodict, dictkey_filename, JM_UNICODE(name));
+                DICT_SETITEM_DROP(infodict, dictkey_filename, JM_EscapeStrFromStr(name));
 
                 name = (char *) pdf_to_text_string(gctx,
                                     pdf_dict_get(gctx, o, PDF_NAME(UF)));
-                DICT_SETITEM_DROP(infodict, dictkey_ufilename, JM_UNICODE(name));
+                DICT_SETITEM_DROP(infodict, dictkey_ufilename, JM_EscapeStrFromStr(name));
 
                 name = (char *) pdf_to_text_string(gctx,
                                     pdf_dict_get(gctx, o, PDF_NAME(Desc)));
-                DICT_SETITEM_DROP(infodict, dictkey_desc, JM_UNICODE(name));
+                DICT_SETITEM_DROP(infodict, dictkey_desc, JM_UnicodeFromStr(name));
 
                 int len = -1, DL = -1;
                 pdf_obj *ef = pdf_dict_get(gctx, o, PDF_NAME(EF));
@@ -1555,7 +1554,7 @@ if len(pyliste) == 0 or min(pyliste) not in range(len(self)) or max(pyliste) not
                         fz_drop_buffer(gctx, buffer);
                     }
                     tuple = PyTuple_New(4);
-                    PyTuple_SET_ITEM(tuple, 0, JM_UNICODE(pdf_to_name(gctx, bname)));
+                    PyTuple_SET_ITEM(tuple, 0, JM_EscapeStrFromStr(pdf_to_name(gctx, bname)));
                     PyTuple_SET_ITEM(tuple, 1, PyUnicode_FromString(ext));
                     PyTuple_SET_ITEM(tuple, 2, PyUnicode_FromString(pdf_to_name(gctx, subtype)));
                     PyTuple_SET_ITEM(tuple, 3, bytes);
@@ -3083,10 +3082,13 @@ struct fz_page_s {
             fz_try(gctx)
             {
                 assert_PDF(page);
+                fz_rect r = JM_rect_from_py(rect);
+                if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
+                    THROWMSG("rect must be finite and not empty");
                 if (INRANGE(stamp, 0, n-1))
                     name = stamp_id[stamp];
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_STAMP);
-                pdf_set_annot_rect(gctx, annot, JM_rect_from_py(rect));
+                pdf_set_annot_rect(gctx, annot, r);
                 pdf_dict_put(gctx, annot->obj, PDF_NAME(Name), name);
                 pdf_set_annot_contents(gctx, annot,
                         pdf_dict_get_name(gctx, annot->obj, PDF_NAME(Name)));
@@ -3220,8 +3222,11 @@ struct fz_page_s {
             pdf_annot *annot = NULL;
             fz_try(gctx)
             {
+                fz_rect r = JM_rect_from_py(rect);
+                if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
+                    THROWMSG("rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, annot_type);
-                pdf_set_annot_rect(gctx, annot, JM_rect_from_py(rect));
+                pdf_set_annot_rect(gctx, annot, r);
                 JM_add_annot_id(gctx, annot, "fitzannot");
                 pdf_update_annot(gctx, annot);
             }
@@ -3305,6 +3310,8 @@ struct fz_page_s {
             pdf_annot *annot = NULL;
             fz_try(gctx)
             {
+                if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
+                    THROWMSG("rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_FREE_TEXT);
                 pdf_set_annot_contents(gctx, annot, text);
                 pdf_set_annot_rect(gctx, annot, r);
@@ -3704,19 +3711,17 @@ except:
         //---------------------------------------------------------------------
         // Page.deleteAnnot() - delete annotation and return the next one
         //---------------------------------------------------------------------
-        %pythonprepend deleteAnnot
-%{
-CheckParent(self)
-CheckParent(annot)
-%}
-        %pythonappend deleteAnnot
-%{
-if val:
-    val.thisown = True
-    val.parent = weakref.proxy(self) # owning page object
-    val.parent._annot_refs[id(val)] = val
-annot._erase()
-%}
+        %pythonprepend deleteAnnot %{
+        CheckParent(self)
+        CheckParent(annot)
+        %}
+        %pythonappend deleteAnnot %{
+        if val:
+            val.thisown = True
+            val.parent = weakref.proxy(self) # owning page object
+            val.parent._annot_refs[id(val)] = val
+        annot._erase()
+        %}
         %feature("autodoc","Delete annot and return next one.") deleteAnnot;
         struct pdf_annot_s *deleteAnnot(struct pdf_annot_s *annot)
         {
@@ -3738,6 +3743,7 @@ annot._erase()
             page->doc->dirty = 1;
             return nextannot;
         }
+
 
         //---------------------------------------------------------------------
         // MediaBox: get the /MediaBox (PDF only)
@@ -4284,7 +4290,7 @@ def insertFont(self, fontname="helv", fontfile=None, fontbuffer=None,
                 weiter: ;
                 ixref = pdf_to_num(gctx, font_obj);
 
-                PyObject *name = JM_UNICODE(pdf_to_name(gctx,
+                PyObject *name = JM_EscapeStrFromStr(pdf_to_name(gctx,
                             pdf_dict_get(gctx, font_obj, PDF_NAME(BaseFont))));
 
                 PyObject *subt = PyUnicode_FromString(pdf_to_name(gctx,
@@ -5383,16 +5389,9 @@ struct fz_outline_s {
 */
     %extend {
         %pythoncode %{@property%}
-        %pythonappend uri %{
-        if val:
-            nval = "".join([c for c in val if 32 <= ord(c) <= 127])
-            val = nval
-        else:
-            val = ""
-        %}
         PyObject *uri()
         {
-            return JM_UNICODE($self->uri);
+            return JM_UnicodeFromStr($self->uri);
         }
 
         %pythoncode %{@property%}
@@ -5468,7 +5467,7 @@ struct pdf_annot_s
                 obj = pdf_dict_get(gctx, $self->obj, PDF_NAME(BM));
                 if (obj)  // check the annot object for /BM
                 {
-                    blend_mode = Py_BuildValue("s", pdf_to_name(gctx, obj));
+                    blend_mode = JM_UnicodeFromStr(pdf_to_name(gctx, obj));
                     goto fertig;
                 }
                 // loop through the /AP/N/Resources/ExtGState objects
@@ -5492,7 +5491,7 @@ struct pdf_annot_s
                                 obj2 = pdf_dict_get_key(gctx, obj1, j);
                                 if (pdf_objcmp(gctx, obj2, PDF_NAME(BM)) == 0)
                                 {
-                                    blend_mode = Py_BuildValue("s", pdf_to_name(gctx, pdf_dict_get_val(gctx, obj1, j)));
+                                    blend_mode = JM_UnicodeFromStr(pdf_to_name(gctx, pdf_dict_get_val(gctx, obj1, j)));
                                     goto fertig;
                                 }
                             }
@@ -5616,7 +5615,7 @@ struct pdf_annot_s
                 if (obj)
                 {
                     text = pdf_to_text_string(gctx, obj);
-                    DICT_SETITEM_DROP(values, dictkey_text, Py_BuildValue("s", text));
+                    DICT_SETITEM_DROP(values, dictkey_text, JM_UnicodeFromStr(text));
                 }
                 else
                 {
@@ -5844,7 +5843,7 @@ struct pdf_annot_s
             def color_string(cs, code):
                 """Return valid PDF color operator for a given color sequence.
                 """
-                if cs is None or cs == "":
+                if not cs:
                     return b""
                 if hasattr(cs, "__float__") or len(cs) == 1:
                     app = " g\n" if code == "f" else " G\n"
@@ -5866,10 +5865,12 @@ struct pdf_annot_s
             dt = self.border["dashes"]  # get the dashes spec
             bwidth = self.border["width"]  # get border line width
             stroke = self.colors["stroke"]  # get the stroke color
-            if fill_color is not None:  # get the fill color
-                fill = fill_color
+            if fill_color is not None and type == PDF_ANNOT_FREE_TEXT:
+                fill = fill_color  # get the fill color for 'FreeText' only
             else:
                 fill = self.colors["fill"]
+                if not fill:
+                    fill = None
 
             rect = None  # self.rect  # prevent MuPDF fiddling with it
 
@@ -5983,16 +5984,22 @@ struct pdf_annot_s
                 ap = b"\n".join(ap_tab)         # updated AP stream
                 ap_updated = True
 
-            if bfill != "":
+            if bfill != b"":
                 if type == PDF_ANNOT_POLYGON:
                     ap = ap[:-1] + bfill + b"b"  # close, fill, and stroke
                     ap_updated = True
                 elif type == PDF_ANNOT_POLYLINE:
                     ap = ap[:-1] + bfill + b"B"  # fill and stroke
                     ap_updated = True
+            else:
+                if type == PDF_ANNOT_POLYGON:
+                    ap = ap[:-1] + b"s"  # close and stroke
+                    ap_updated = True
+                elif type == PDF_ANNOT_POLYLINE:
+                    ap = ap[:-1] + b"S"  # stroke
+                    ap_updated = True
 
-            # Dashes not handled by MuPDF, so we do it here.
-            if dashes is not None:
+            if dashes is not None:  # handle dashes
                 ap = dashes + ap
                 # reset dashing - only applies for LINE annots with line ends given
                 ap = ap.replace(b"\nS\n", b"\nS\n[] d\n", 1)
@@ -6021,12 +6028,12 @@ struct pdf_annot_s
                 if line_end_le in le_funcs_range:
                     p1 = Point(points[0]) * imat
                     p2 = Point(points[1]) * imat
-                    left = le_funcs[line_end_le](self, p1, p2, False)
+                    left = le_funcs[line_end_le](self, p1, p2, False, fill_color)
                     ap += bytes(left, "utf8") if not fitz_py2 else left
                 if line_end_ri in le_funcs_range:
                     p1 = Point(points[-2]) * imat
                     p2 = Point(points[-1]) * imat
-                    left = le_funcs[line_end_ri](self, p1, p2, True)
+                    left = le_funcs[line_end_ri](self, p1, p2, True, fill_color)
                     ap += bytes(left, "utf8") if not fitz_py2 else left
 
             if ap_updated:
@@ -6225,8 +6232,8 @@ struct pdf_annot_s
                                 PDF_NAME(Size), NULL);
             if (o) size = pdf_to_int(gctx, o);
 
-            DICT_SETITEM_DROP(res, dictkey_filename, JM_UNICODE(filename));
-            DICT_SETITEM_DROP(res, dictkey_desc, JM_UNICODE(desc));
+            DICT_SETITEM_DROP(res, dictkey_filename, JM_EscapeStrFromStr(filename));
+            DICT_SETITEM_DROP(res, dictkey_desc, JM_UnicodeFromStr(desc));
             DICT_SETITEM_DROP(res, dictkey_length, Py_BuildValue("i", length));
             DICT_SETITEM_DROP(res, dictkey_size, Py_BuildValue("i", size));
             return res;
@@ -6344,23 +6351,23 @@ CheckParent(self)
             pdf_obj *o;
 
             DICT_SETITEM_DROP(res, dictkey_content,
-                          Py_BuildValue("s", pdf_annot_contents(gctx, $self)));
+                          JM_UnicodeFromStr(pdf_annot_contents(gctx, $self)));
 
             o = pdf_dict_get(gctx, $self->obj, PDF_NAME(Name));
-            DICT_SETITEM_DROP(res, dictkey_name, Py_BuildValue("s", pdf_to_name(gctx, o)));
+            DICT_SETITEM_DROP(res, dictkey_name, JM_UnicodeFromStr(pdf_to_name(gctx, o)));
 
             // Title (= author)
             o = pdf_dict_get(gctx, $self->obj, PDF_NAME(T));
-            DICT_SETITEM_DROP(res, dictkey_title, Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+            DICT_SETITEM_DROP(res, dictkey_title, JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             // CreationDate
             o = pdf_dict_gets(gctx, $self->obj, "CreationDate");
             DICT_SETITEM_DROP(res, dictkey_creationDate,
-                          Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+                          JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             // ModDate
             o = pdf_dict_get(gctx, $self->obj, PDF_NAME(M));
-            DICT_SETITEM_DROP(res, dictkey_modDate, Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+            DICT_SETITEM_DROP(res, dictkey_modDate, JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             // Subj
             o = pdf_dict_gets(gctx, $self->obj, "Subj");
@@ -6370,7 +6377,7 @@ CheckParent(self)
             // Identification (PDF key /NM)
             o = pdf_dict_gets(gctx, $self->obj, "NM");
             DICT_SETITEM_DROP(res, dictkey_id,
-                          Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+                          JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             return res;
         }
@@ -6382,12 +6389,12 @@ CheckParent(self)
         %feature("autodoc","Set various annotation properties.") setInfo;
         %pythonprepend setInfo %{
         CheckParent(self)
-        if type(info) is dict:  # build a new dictionary from the other args
-            content = info.get("content", "")
-            title = info.get("title", "")
-            creationDate = info.get("creationDate", "")
-            modDate = info.get("modDate", "")
-            subject = info.get("subject", "")
+        if type(info) is dict:  # build the args from the dictionary
+            content = info.get("content", None)
+            title = info.get("title", None)
+            creationDate = info.get("creationDate", None)
+            modDate = info.get("modDate", None)
+            subject = info.get("subject", None)
             info = None
         %}
         PyObject *setInfo(PyObject *info=NULL, char *content=NULL, char *title=NULL,
@@ -6397,24 +6404,29 @@ CheckParent(self)
             int is_markup = pdf_annot_has_author(gctx, $self);
             fz_try(gctx)
             {
-                // contents{
-                pdf_set_annot_contents(gctx, $self, content);
+                // contents
+                if (content)
+                    pdf_set_annot_contents(gctx, $self, content);
 
                 if (is_markup)
                 {
                     // title (= author)
-                    pdf_set_annot_author(gctx, $self, title);
+                    if (title)
+                        pdf_set_annot_author(gctx, $self, title);
 
                     // creation date
-                    pdf_dict_put_text_string(gctx, $self->obj,
+                    if (creationDate)
+                        pdf_dict_put_text_string(gctx, $self->obj,
                                                  PDF_NAME(CreationDate), creationDate);
 
                     // mod date
-                    pdf_dict_put_text_string(gctx, $self->obj,
+                    if (modDate)
+                        pdf_dict_put_text_string(gctx, $self->obj,
                                                  PDF_NAME(M), modDate);
 
                     // subject
-                    pdf_dict_puts_drop(gctx, $self->obj, "Subj",
+                    if (subject)
+                        pdf_dict_puts_drop(gctx, $self->obj, "Subj",
                                            pdf_new_text_string(gctx, subject));
                 }
             }
@@ -6700,16 +6712,9 @@ struct fz_link_s
         %}
         PARENTCHECK(uri)
         %pythoncode %{@property%}
-        %pythonappend uri %{
-        if not val:
-            val = ""
-        else:
-            nval = "".join([c for c in val if 32 <= ord(c) <= 127])
-            val = nval
-        %}
         PyObject *uri()
         {
-            return JM_UNICODE($self->uri);
+            return JM_UnicodeFromStr($self->uri);
         }
 
         PARENTCHECK(isExternal)
@@ -7313,12 +7318,12 @@ struct Tools
         }
 
 
-        %feature("autodoc","Show anti-aliasing values.") anti_aliasing_values;
-        %pythonappend anti_aliasing_values %{
+        %feature("autodoc","Show anti-aliasing values.") show_aa_level;
+        %pythonappend show_aa_level %{
         d = {"graphics": val[0], "text": val[1], "graphics_min_line_width": val[2]}
         val = d
         %}
-        PyObject *anti_aliasing_values()
+        PyObject *show_aa_level()
         {
             return Py_BuildValue("iif",
                 fz_graphics_aa_level(gctx),
@@ -7710,15 +7715,20 @@ def _angle_between(self, C, P, Q):
     m = self._hor_matrix(P, Q)
     return (C * m).unit
 
-def _le_annot_parms(self, annot, p1, p2):
+def _le_annot_parms(self, annot, p1, p2, fill_color):
     """Get common parameters for making line end symbols.
     """
-    w = annot.border["width"]          # line width
-    sc = annot.colors["stroke"]        # stroke color
-    if not sc: sc = (0,0,0)
+    w = annot.border["width"]  # line width
+    sc = annot.colors["stroke"]  # stroke color
+    if not sc:  # black if missing
+        sc = (0,0,0)
     scol = " ".join(map(str, sc)) + " RG\n"
-    fc = annot.colors["fill"]          # fill color
-    if not fc: fc = (0,0,0)
+    if fill_color:
+        fc = fill_color
+    else:
+        fc = annot.colors["fill"]  # fill color
+    if not fc:
+        fc = (1,1,1)  # white if missing
     fcol = " ".join(map(str, fc)) + " rg\n"
     nr = annot.rect
     np1 = p1                   # point coord relative to annot rect
@@ -7728,7 +7738,7 @@ def _le_annot_parms(self, annot, p1, p2):
     L = np1 * m                        # converted start (left) point
     R = np2 * m                        # converted end (right) point
     if 0 <= annot.opacity < 1:
-        opacity = "/Alp0 gs\n"
+        opacity = "/H gs\n"
     else:
         opacity = ""
     return m, im, L, R, w, scol, fcol, opacity
@@ -7761,10 +7771,10 @@ def _oval_string(self, p1, p2, p3, p4):
     ap += bezier(ul1, ul2, ml)
     return ap
 
-def _le_diamond(self, annot, p1, p2, lr):
+def _le_diamond(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for diamond line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5             # 2*shift*width = length of square edge
     d = shift * max(1, w)
     M = R - (d/2., 0) if lr else L + (d/2., 0)
@@ -7782,10 +7792,10 @@ def _le_diamond(self, annot, p1, p2, lr):
     ap += scol + fcol + "b\nQ\n"
     return ap
 
-def _le_square(self, annot, p1, p2, lr):
+def _le_square(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for square line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5             # 2*shift*width = length of square edge
     d = shift * max(1, w)
     M = R - (d/2., 0) if lr else L + (d/2., 0)
@@ -7803,10 +7813,10 @@ def _le_square(self, annot, p1, p2, lr):
     ap += scol + fcol + "b\nQ\n"
     return ap
 
-def _le_circle(self, annot, p1, p2, lr):
+def _le_circle(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for circle line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5             # 2*shift*width = length of square edge
     d = shift * max(1, w)
     M = R - (d/2., 0) if lr else L + (d/2., 0)
@@ -7816,10 +7826,10 @@ def _le_circle(self, annot, p1, p2, lr):
     ap += scol + fcol + "b\nQ\n"
     return ap
 
-def _le_butt(self, annot, p1, p2, lr):
+def _le_butt(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for butt line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 3
     d = shift * max(1, w)
     M = R if lr else L
@@ -7831,10 +7841,10 @@ def _le_butt(self, annot, p1, p2, lr):
     ap += scol + "s\nQ\n"
     return ap
 
-def _le_slash(self, annot, p1, p2, lr):
+def _le_slash(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for slash line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     rw = 1.1547 * max(1, w) * 1.0         # makes rect diagonal a 30 deg inclination
     M = R if lr else L
     r = Rect(M.x - rw, M.y - 2 * w, M.x + rw, M.y + 2 * w)
@@ -7846,10 +7856,10 @@ def _le_slash(self, annot, p1, p2, lr):
     ap += scol + "s\nQ\n"
     return ap
 
-def _le_openarrow(self, annot, p1, p2, lr):
+def _le_openarrow(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for open arrow line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5
     d = shift * max(1, w)
     p2 = R + (d/2., 0) if lr else L - (d/2., 0)
@@ -7865,10 +7875,10 @@ def _le_openarrow(self, annot, p1, p2, lr):
     ap += scol + "S\nQ\n"
     return ap
 
-def _le_closedarrow(self, annot, p1, p2, lr):
+def _le_closedarrow(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for closed arrow line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5
     d = shift * max(1, w)
     p2 = R + (d/2., 0) if lr else L - (d/2., 0)
@@ -7884,10 +7894,10 @@ def _le_closedarrow(self, annot, p1, p2, lr):
     ap += scol + fcol + "b\nQ\n"
     return ap
 
-def _le_ropenarrow(self, annot, p1, p2, lr):
+def _le_ropenarrow(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for right open arrow line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5
     d = shift * max(1, w)
     p2 = R - (d/3., 0) if lr else L + (d/3., 0)
@@ -7903,10 +7913,10 @@ def _le_ropenarrow(self, annot, p1, p2, lr):
     ap += scol + fcol + "S\nQ\n"
     return ap
 
-def _le_rclosedarrow(self, annot, p1, p2, lr):
+def _le_rclosedarrow(self, annot, p1, p2, lr, fill_color):
     """Make stream commands for right closed arrow line end symbol. "lr" denotes left (False) or right point.
     """
-    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+    m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
     shift = 2.5
     d = shift * max(1, w)
     p2 = R - (2*d, 0) if lr else L + (2*d, 0)
