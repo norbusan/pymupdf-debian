@@ -1,6 +1,37 @@
 Change Logs
 ===============
 
+Changes in Version 1.16.17
+---------------------------
+
+* **Fixed** issue `#479 <https://github.com/pymupdf/PyMuPDF/issues/479>`_. PyMuPDF should now more correctly report image resolutions. This applies to both, images (either from images files or extracted from PDF documents) and pixmaps created from images.
+* **Added** :meth:`Pixmap.setResolution` which sets the image resolution in x and y directions.
+
+Changes in Version 1.16.16
+---------------------------
+
+* **Fixed** issue `#477 <https://github.com/pymupdf/PyMuPDF/issues/477>`_.
+* **Fixed** issue `#476 <https://github.com/pymupdf/PyMuPDF/issues/476>`_.
+* **Changed** annotation line end symbol coloring and fixed an error coloring the interior of 'Polyline' /'Polygon' annotations.
+
+Changes in Version 1.16.14
+---------------------------
+
+* **Changed** text marker annotations to accept parameters beyond just quadrilaterals such that now **text lines between two given points can be marked**.
+
+* **Added** :meth:`Document.scrub` which **removes potentially sensitive data** from a PDF. Implements `#453 <https://github.com/pymupdf/PyMuPDF/issues/453>`_.
+
+* **Added** :meth:`Annot.blendMode` which returns the **blend mode** of annotations.
+
+* **Added** :meth:`Annot.setBlendMode` to set the annotation's blend mode. This resolves issue `#416 <https://github.com/pymupdf/PyMuPDF/issues/416>`_.
+* **Changed** :meth:`Annot.update` to accept additional parameters for setting blend mode and opacity.
+* **Added** advanced graphics features to **control the anti-aliasing values**, :meth:`Tools.set_aa_level`. Resolves `#467 <https://github.com/pymupdf/PyMuPDF/issues/467>`_
+
+* **Fixed** issue `#474 <https://github.com/pymupdf/PyMuPDF/issues/474>`_.
+* **Fixed** issue `#466 <https://github.com/pymupdf/PyMuPDF/issues/466>`_.
+
+
+
 Changes in Version 1.16.13
 ---------------------------
 

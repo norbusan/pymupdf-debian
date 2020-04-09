@@ -29,7 +29,19 @@ PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
     if (!buff) return PyUnicode_FromString("");
     unsigned char *s = NULL;
     size_t len = fz_buffer_storage(ctx, buff, &s);
-    PyObject *val = PyUnicode_DecodeUnicodeEscape(s, (Py_ssize_t) len, "replace");
+    PyObject *val = PyUnicode_DecodeRawUnicodeEscape(s, (Py_ssize_t) len, "replace");
+    if (!val)
+    {
+        val = PyUnicode_FromString("");
+        PyErr_Clear();
+    }
+    return val;
+}
+
+PyObject *JM_UnicodeFromStr(const char *c)
+{
+    if (!c) return PyUnicode_FromString("");
+    PyObject *val = Py_BuildValue("s", c);
     if (!val)
     {
         val = PyUnicode_FromString("");
@@ -41,7 +53,7 @@ PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
 PyObject *JM_EscapeStrFromStr(const char *c)
 {
     if (!c) return PyUnicode_FromString("");
-    PyObject *val = PyUnicode_DecodeUnicodeEscape(c, (Py_ssize_t) strlen(c), "replace");
+    PyObject *val = PyUnicode_DecodeRawUnicodeEscape(c, (Py_ssize_t) strlen(c), "replace");
     if (!val)
     {
         val = PyUnicode_FromString("");
@@ -276,7 +288,7 @@ PyObject *JM_BinFromBuffer(fz_context *ctx, fz_buffer *buffer)
         return PyBytes_FromString("");
     }
     char *c = NULL;
-    size_t len = fz_buffer_storage(gctx, buffer, &c);
+    size_t len = fz_buffer_storage(ctx, buffer, &c);
     return PyBytes_FromStringAndSize(c, (Py_ssize_t) len);
 }
 
@@ -622,7 +634,7 @@ PyObject *JM_outline_xrefs(fz_context *ctx, pdf_obj *obj, PyObject *xrefs)
 //-----------------------------------------------------------------------------
 // Return the contents of a font file
 //-----------------------------------------------------------------------------
-fz_buffer *fontbuffer(fz_context *ctx, pdf_document *doc, int xref)
+fz_buffer *JM_get_fontbuffer(fz_context *ctx, pdf_document *doc, int xref)
 {
     if (xref < 1) return NULL;
     pdf_obj *o, *obj = NULL, *desft, *stream = NULL;
@@ -686,7 +698,7 @@ fz_buffer *fontbuffer(fz_context *ctx, pdf_document *doc, int xref)
 //-----------------------------------------------------------------------------
 // Return the file extension of an embedded font file
 //-----------------------------------------------------------------------------
-char *fontextension(fz_context *ctx, pdf_document *doc, int xref)
+char *JM_get_fontextension(fz_context *ctx, pdf_document *doc, int xref)
 {
     if (xref < 1) return "n/a";
     pdf_obj *o, *obj = NULL, *desft;
@@ -732,6 +744,116 @@ char *fontextension(fz_context *ctx, pdf_document *doc, int xref)
 
     return "n/a";
 }
+
+
+//-----------------------------------------------------------------------------
+// version of fz_show_string, which also covers UCDN script
+//-----------------------------------------------------------------------------
+fz_matrix JM_show_string(fz_context *ctx, fz_text *text, fz_font *user_font, fz_matrix trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language, int script)
+{
+    fz_font *font;
+    int gid, ucs;
+    float adv;
+
+    while (*s)
+    {
+        s += fz_chartorune(&ucs, s);
+        gid = fz_encode_character_with_fallback(ctx, user_font, ucs, script, language, &font);
+        fz_show_glyph(ctx, text, font, trm, gid, ucs, wmode, bidi_level, markup_dir, language);
+        adv = fz_advance_glyph(ctx, font, gid, wmode);
+        if (wmode == 0)
+            trm = fz_pre_translate(trm, adv, 0);
+        else
+            trm = fz_pre_translate(trm, 0, -adv);
+    }
+
+    return trm;
+}
+
+
+//-----------------------------------------------------------------------------
+// return a fz_font from a number of parameters
+//-----------------------------------------------------------------------------
+fz_font *JM_get_font(fz_context *ctx,
+    char *fontname,
+    char *fontfile,
+    PyObject *fontbuffer,
+    int script,
+    int lang,
+    int ordering,
+    int is_bold,
+    int is_italic)
+{
+    const unsigned char *data = NULL;
+    int size, index=0;
+    fz_buffer *res = NULL;
+    fz_font *font = NULL;
+    fz_try(ctx)
+    {
+        if (fontfile) goto have_file;
+        if (EXISTS(fontbuffer)) goto have_buffer;
+        if (ordering > -1) goto have_cjk;
+        if (fontname) goto have_base14;
+        goto have_noto;
+
+        // Base-14 font
+        have_base14:;
+        data = fz_lookup_base14_font(ctx, fontname, &size);
+        if (data)
+        {
+            font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
+            goto fertig;
+        }
+        data = fz_lookup_builtin_font(gctx, fontname, is_bold, is_italic, &size);
+        if (data)
+        {
+            font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
+        }
+        goto fertig;
+
+        // CJK font
+        have_cjk:;
+        data = fz_lookup_cjk_font(ctx, ordering, &size, &index);
+        if (data)
+        {
+            font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+        }
+        goto fertig;
+
+        // fontfile
+        have_file:;
+        font = fz_new_font_from_file(ctx, NULL, fontfile, index, 0);
+        goto fertig;
+
+        // fontbuffer
+        have_buffer:;
+        res = JM_BufferFromBytes(ctx, fontbuffer);
+        font = fz_new_font_from_buffer(ctx, NULL, res, index, 0);
+        goto fertig;
+
+        // Check for NOTO font
+        have_noto:;
+        data = fz_lookup_noto_font(ctx, script, lang, &size, &index);
+        if (data)
+        {
+            font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+        }
+        goto fertig;
+
+        fertig:;
+    }
+    fz_always(ctx)
+    {
+        fz_drop_buffer(ctx, res);
+    }
+    fz_catch(ctx)
+    {
+        PySys_WriteStderr("error allocating the font");
+        fz_rethrow(ctx);
+    }
+    return font;
+}
+
 
 //-----------------------------------------------------------------------------
 // create PDF object from given string (new in v1.14.0: MuPDF dropped it)
@@ -799,4 +921,208 @@ struct fz_store_s
 	int needs_reaping;
 };
 
+
+//----------------------------------------------------------------------------
+// return normalized /Rotate value
+//----------------------------------------------------------------------------
+int JM_norm_rotation(int rotate)
+{
+    while (rotate < 0) rotate += 360;
+    while (rotate >= 360) rotate -= 360;
+    if (rotate % 90 != 0) return 0;
+    return rotate;
+}
+
+
+//----------------------------------------------------------------------------
+// return a PDF page's /Rotate value
+//----------------------------------------------------------------------------
+int JM_page_rotation(fz_context *ctx, pdf_page *page)
+{
+    int rotate = 0;
+    fz_try(ctx)
+    {
+        rotate = pdf_to_int(ctx,
+                pdf_dict_get_inheritable(ctx, page->obj, PDF_NAME(Rotate)));
+        rotate = JM_norm_rotation(rotate);
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return rotate;
+}
+
+
+//----------------------------------------------------------------------------
+// return a PDF page's MediaBox
+//----------------------------------------------------------------------------
+fz_rect JM_mediabox(fz_context *ctx, pdf_page *page)
+{
+    fz_rect mediabox, page_mediabox;
+    pdf_obj *obj;
+    float userunit = 1;
+
+    obj = pdf_dict_get(ctx, page->obj, PDF_NAME(UserUnit));
+    if (pdf_is_real(ctx, obj))
+        userunit = pdf_to_real(ctx, obj);
+
+    mediabox = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, page->obj,
+        PDF_NAME(MediaBox)));
+    if (fz_is_empty_rect(mediabox) || fz_is_infinite_rect(mediabox))
+    {
+        mediabox.x0 = 0;
+        mediabox.y0 = 0;
+        mediabox.x1 = 612;
+        mediabox.y1 = 792;
+    }
+
+    page_mediabox.x0 = fz_min(mediabox.x0, mediabox.x1);
+    page_mediabox.y0 = fz_min(mediabox.y0, mediabox.y1);
+    page_mediabox.x1 = fz_max(mediabox.x0, mediabox.x1);
+    page_mediabox.y1 = fz_max(mediabox.y0, mediabox.y1);
+
+    if (page_mediabox.x1 - page_mediabox.x0 < 1 ||
+        page_mediabox.y1 - page_mediabox.y0 < 1)
+        page_mediabox = fz_unit_rect;
+
+    return page_mediabox;
+}
+
+
+//----------------------------------------------------------------------------
+// return a PDF page's CropBox
+//----------------------------------------------------------------------------
+fz_rect JM_cropbox(fz_context *ctx, pdf_page *page)
+{
+    fz_rect mediabox = JM_mediabox(ctx, page);
+    fz_rect cropbox = pdf_to_rect(ctx,
+                pdf_dict_get_inheritable(ctx, page->obj, PDF_NAME(CropBox)));
+    if (fz_is_infinite_rect(cropbox) || fz_is_empty_rect(cropbox))
+        cropbox = mediabox;
+    float y0 = mediabox.y1 - cropbox.y1;
+    float y1 = mediabox.y1 - cropbox.y0;
+    cropbox.y0 = y0;
+    cropbox.y1 = y1;
+    return cropbox;
+}
+
+
+//----------------------------------------------------------------------------
+// determine width and height of the unrotated page
+//----------------------------------------------------------------------------
+fz_point JM_cropbox_size(fz_context *ctx, pdf_page *page)
+{
+    fz_point size;
+    fz_try(ctx)
+    {
+        fz_rect rect = JM_cropbox(ctx, page);
+        float w = (rect.x0 < rect.x1 ? rect.x1 - rect.x0 : rect.x0 - rect.x1);
+        float h = (rect.y0 < rect.y1 ? rect.y1 - rect.y0 : rect.y0 - rect.y1);
+        size = fz_make_point(w, h);
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return size;
+}
+
+
+//----------------------------------------------------------------------------
+// calculate NON-ROTATED point coordinates
+//----------------------------------------------------------------------------
+fz_point JM_derotate_point(fz_context *ctx, pdf_page *page, fz_point point)
+{
+    fz_point newp;
+    fz_try(ctx)
+    {
+        fz_point cb_size = JM_cropbox_size(ctx, page);
+        float w = cb_size.x;
+        float h = cb_size.y;
+        int rotate = JM_page_rotation(ctx, page);
+        if (rotate == 0)
+            newp = point;
+        else if (rotate == 90)
+            newp = fz_make_point(point.y, h - point.x);
+        else if (rotate == 180)
+            newp = fz_make_point(w - point.x, h - point.y);
+        else  // rotate == 270
+            newp = fz_make_point(w - point.y, point.x);
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return newp;
+}
+
+
+//----------------------------------------------------------------------------
+// calculate ROTATED point coordinates
+//----------------------------------------------------------------------------
+fz_point JM_rotate_point(fz_context *ctx, pdf_page *page, fz_point point)
+{
+    fz_point newp;
+    fz_try(ctx)
+    {
+        fz_point cb_size = JM_cropbox_size(ctx, page);
+        float w = cb_size.x;
+        float h = cb_size.y;
+        int rotate = JM_page_rotation(ctx, page);
+        if (rotate == 0)
+            newp = point;
+        else if (rotate == 90)
+            newp = fz_make_point(h - point.y, point.x);
+        else if (rotate == 180)
+            newp = fz_make_point(w - point.x, h - point.y);
+        else  // rotate == 270
+            newp = fz_make_point(point.y, w - point.x);
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return newp;
+}
+
+
+//----------------------------------------------------------------------------
+// calculate ROTATED rect coordinates
+//----------------------------------------------------------------------------
+fz_rect JM_rotate_rect(fz_context *ctx, pdf_page *page, fz_rect rect)
+{
+    fz_rect newr;
+    fz_try(ctx)
+    {
+        fz_point p;
+        p = JM_rotate_point(ctx, page, fz_make_point(rect.x0, rect.y0));
+        newr.x0 = p.x;
+        newr.y0 = p.y;
+        newr.x1 = p.x;
+        newr.y1 = p.y;
+        p = JM_rotate_point(ctx, page, fz_make_point(rect.x1, rect.y0));
+        newr = fz_include_point_in_rect(newr, p);
+        p = JM_rotate_point(ctx, page, fz_make_point(rect.x0, rect.y1));
+        newr = fz_include_point_in_rect(newr, p);
+        p = JM_rotate_point(ctx, page, fz_make_point(rect.x1, rect.y1));
+        newr = fz_include_point_in_rect(newr, p);
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return newr;
+}
+
+
+//----------------------------------------------------------------------------
+// calculate NON-ROTATED rect coordinates
+//----------------------------------------------------------------------------
+fz_rect JM_derotate_rect(fz_context *ctx, pdf_page *page, fz_rect rect)
+{
+    fz_rect newr;
+    fz_try(ctx)
+    {
+        fz_point p;
+        p = JM_derotate_point(ctx, page, fz_make_point(rect.x0, rect.y0));
+        newr.x0 = p.x;
+        newr.y0 = p.y;
+        newr.x1 = p.x;
+        newr.y1 = p.y;
+        p = JM_derotate_point(ctx, page, fz_make_point(rect.x1, rect.y0));
+        newr = fz_include_point_in_rect(newr, p);
+        p = JM_derotate_point(ctx, page, fz_make_point(rect.x0, rect.y1));
+        newr = fz_include_point_in_rect(newr, p);
+        p = JM_derotate_point(ctx, page, fz_make_point(rect.x1, rect.y1));
+        newr = fz_include_point_in_rect(newr, p);
+    }
+    fz_catch(ctx) fz_rethrow(ctx);
+    return newr;
+}
 %}
