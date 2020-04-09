@@ -9,10 +9,13 @@ This class is a collection of utility methods and attributes, mainly around memo
 **Method / Attribute**             **Description**
 ================================== =================================================
 :meth:`Tools.gen_id`               generate a unique identifyer
+:meth:`Tools.image_profile`        report basic image properties
 :meth:`Tools.store_shrink`         shrink the storables cache [#f1]_
 :meth:`Tools.mupdf_warnings`       return the accumulated MuPDF warnings
 :meth:`Tools.mupdf_display_errors` return the accumulated MuPDF warnings
 :meth:`Tools.reset_mupdf_warnings` empty MuPDF messages on STDOUT
+:meth:`Tools.set_aa_level`         set the anti-aliasing values
+:meth:`Tools.show_aa_level`        return the anti-aliasing values
 :attr:`Tools.fitz_config`          configuration settings of PyMuPDF
 :attr:`Tools.store_maxsize`        maximum storables cache size
 :attr:`Tools.store_size`           current storables cache size
@@ -34,6 +37,45 @@ This class is a collection of utility methods and attributes, mainly around memo
       :rtype: int
       :returns: a unique positive integer.
 
+   .. method:: image_profile(stream)
+
+      *(New in v1.16.17)* Show important properties of an image provided as a memory area. Its main purpose is to avoid using other Python packages just to determine basic properties.
+
+      :arg bytes,bytearray stream: the image data.
+      :rtype: dict
+      :returns: a dictionary with the keys "width", "height", "xres", "yres", "colorspace" (the *colorspace.n* value, number of colorants), "cs-name" (the *colorspace.name* value), "bpc", "ext" (image type as file extension). The values for these keys are the same as returned by :meth:`Document.extractImage`. Please also have a look at :data:`resolution`.
+      
+      .. note::
+
+        * For some "exotic" images (FAX encodings, RAW formats and the like), this method will not work and return *None*. You can however still work with such images in PyMuPDF, e.g. by using :meth:`Document.extractImage` or create pixmaps via ``Pixmap(doc, xref)``. These methods will automatically convert exotic images to the PNG format before returning results.
+
+        * Some examples::
+
+               In [1]: import fitz
+               In [2]: stream = open(<image.file>, "rb").read()
+               In [3]: fitz.TOOLS.image_profile(stream)
+               Out[3]:
+               {'width': 439,
+               'height': 501,
+               'xres': 96,
+               'yres': 96,
+               'colorspace': 3,
+               'bpc': 8,
+               'ext': 'jpeg',
+               'cs-name': 'DeviceRGB'}
+               In [4]: doc=fitz.open(<input.pdf>)
+               In [5]: stream = doc.xrefStreamRaw(5)  # no decompression!
+               In [6]: fitz.TOOLS.image_profile(stream)
+               Out[6]:
+               {'width': 816,
+               'height': 1056,
+               'xres': 96,
+               'yres': 96,
+               'colorspace': 1,
+               'bpc': 8,
+               'ext': 'jpeg',
+               'cs-name': 'DeviceGray'}
+
    .. method:: store_shrink(percent)
 
       Reduce the storables cache by a percentage of its current size.
@@ -42,6 +84,21 @@ This class is a collection of utility methods and attributes, mainly around memo
 
       :rtype: int
       :returns: the new current store size. Depending on the situation, the size reduction may be larger than the requested percentage.
+
+   .. method:: show_aa_level()
+
+      *(New in version 1.16.14)* Return the current anti-aliasing values. These values control the rendering quality of graphics and text elements.
+
+      :rtype: dict
+      :returns: A dictionary with the following initial content: ``{'graphics': 8, 'text': 8, 'graphics_min_line_width': 0.0}``.
+
+
+   .. method:: set_aa_level(level)
+
+      *(New in version 1.16.14)* Set the new number of bits to use for anti-aliasing. The same value is taken currently for graphics and text rendering. This might change in a future MuPDF release.
+
+      :arg int level: an integer ranging between 0 and 8. Value outside this range will be silently changed to valid values. The value will remain in effect throughout the current session or until changed again.
+
 
    .. method:: reset_mupdf_warnings()
 
