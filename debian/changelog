@@ -9,8 +9,9 @@ pymupdf (1.17.4+ds1-1~np1) unstable; urgency=medium
 
   [ Norbert Preining ]
   * New upstream releases.
+  * Bump B-D of libmupdf-dev
 
- -- Norbert Preining <norbert@preining.info>  Wed, 29 Jul 2020 12:37:14 +0900
+ -- Norbert Preining <norbert@preining.info>  Wed, 29 Jul 2020 12:48:09 +0900
 
 pymupdf (1.16.11-1) unstable; urgency=medium
 

@@ -6,7 +6,7 @@ Homepage: https://github.com/pymupdf/PyMuPDF
 Vcs-Browser: https://salsa.debian.org/python-team/modules/pymupdf
 Vcs-Git: https://salsa.debian.org/python-team/modules/pymupdf.git
 Standards-Version: 4.5.0
-Build-Depends: debhelper-compat (= 12), dh-python, python3-setuptools, python3-all, libpython3-all-dev, libmupdf-dev (>= 1.16.1), libjbig2dec-dev, libjpeg-dev, libfreetype6-dev, libpng-dev, libopenjp2-7-dev, libharfbuzz-dev, swig
+Build-Depends: debhelper-compat (= 12), dh-python, python3-setuptools, python3-all, libpython3-all-dev, libmupdf-dev (>= 1.17.0), libjbig2dec-dev, libjpeg-dev, libfreetype6-dev, libpng-dev, libopenjp2-7-dev, libharfbuzz-dev, swig
 Rules-Requires-Root: no
 
 Package: python3-fitz
