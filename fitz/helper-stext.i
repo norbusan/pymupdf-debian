@@ -5,29 +5,28 @@
 fz_stext_page *JM_new_stext_page_from_page(fz_context *ctx, fz_page *page, int flags)
 {
     if (!page) return NULL;
-    fz_stext_page *text = NULL;
+    fz_stext_page *tp = NULL;
+    fz_rect rect;
     fz_device *dev = NULL;
     fz_var(dev);
-    fz_var(text);
+    fz_var(tp);
     fz_stext_options options = { 0 };
     options.flags = flags;
-    fz_try(ctx)
-    {
-        text = fz_new_stext_page(ctx, fz_bound_page(ctx, page));
-        dev = fz_new_stext_device(ctx, text, &options);
+    fz_try(ctx) {
+        rect = fz_bound_page(ctx, page);
+        tp = fz_new_stext_page(ctx, rect);
+        dev = fz_new_stext_device(ctx, tp, &options);
         fz_run_page_contents(ctx, page, dev, fz_identity, NULL);
         fz_close_device(ctx, dev);
     }
-    fz_always(ctx)
-    {
+    fz_always(ctx) {
         fz_drop_device(ctx, dev);
     }
-    fz_catch(ctx)
-    {
-        fz_drop_stext_page(ctx, text);
+    fz_catch(ctx) {
+        fz_drop_stext_page(ctx, tp);
         fz_rethrow(ctx);
     }
-    return text;
+    return tp;
 }
 
 
@@ -36,7 +35,7 @@ fz_stext_page *JM_new_stext_page_from_page(fz_context *ctx, fz_page *page, int f
 //-----------------------------------------------------------------------------
 PyObject *JM_repl_char()
 {
-    const unsigned char data[2] = {194, 183};
+    const char data[2] = {194, 183};
     return PyUnicode_FromStringAndSize(data, 2);
 }
 
@@ -88,10 +87,10 @@ void JM_write_rune(fz_context *ctx, fz_output *out, int ch)
 void
 JM_print_stext_page_as_text(fz_context *ctx, fz_output *out, fz_stext_page *page)
 {
-    fz_stext_block *block;
-    fz_stext_line *line;
-    fz_stext_char *ch;
-    int last_char;
+    fz_stext_block *block = NULL;
+    fz_stext_line *line = NULL;
+    fz_stext_char *ch = NULL;
+    int last_char = 0;
 
     for (block = page->first_block; block; block = block->next)
     {
@@ -236,7 +235,7 @@ static PyObject *JM_make_spanlist(fz_context *ctx, fz_stext_line *line, int raw,
                           Py_BuildValue("ffff", r.x0, r.y0, r.x1, r.y1));
 
             DICT_SETITEM_DROP(char_dict, dictkey_c,
-                          PyUnicode_FromFormat("%c", ch->c));
+                          Py_BuildValue("C", ch->c));
 
             if (!char_list)
             {
@@ -288,29 +287,23 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
         type = FZ_IMAGE_UNKNOWN;
     PyObject *bytes = NULL;
     fz_var(bytes);
-    fz_try(ctx)
-    {
-        if (buffer && type != FZ_IMAGE_UNKNOWN)
-        {
+    fz_try(ctx) {
+        if (buffer && type != FZ_IMAGE_UNKNOWN) {
             buf = buffer->buffer;
             ext = JM_image_extension(type);
         }
-        else
-        {
+        else {
             buf = freebuf = fz_new_buffer_from_image_as_png(ctx, image, fz_default_color_params);
             ext = "png";
         }
-        if (PY_MAJOR_VERSION > 2)
-        {
+        if (PY_MAJOR_VERSION > 2) {
             bytes = JM_BinFromBuffer(ctx, buf);
         }
-        else
-        {
+        else {
             bytes = JM_BArrayFromBuffer(ctx, buf);
         }
     }
-    fz_always(ctx)
-    {
+    fz_always(ctx) {
         if (!bytes)
             bytes = JM_BinFromChar("");
         DICT_SETITEM_DROP(block_dict, dictkey_width,
@@ -386,29 +379,24 @@ void JM_make_textpage_dict(fz_context *ctx, fz_stext_page *tp, PyObject *page_di
     fz_drop_buffer(ctx, text_buffer);
 }
 
-PyObject *JM_object_to_string(fz_context *ctx, pdf_obj *what, int compress, int ascii)
+
+fz_buffer *JM_object_to_buffer(fz_context *ctx, pdf_obj *what, int compress, int ascii)
 {
     fz_buffer *res=NULL;
     fz_output *out=NULL;
-    PyObject *text=NULL;
-    fz_try(ctx)
-    {
+    fz_try(ctx) {
         res = fz_new_buffer(ctx, 1024);
         out = fz_new_output_with_buffer(ctx, res);
         pdf_print_obj(ctx, out, what, compress, ascii);
-        text = JM_EscapeStrFromBuffer(ctx, res);
     }
-    fz_always(ctx)
-    {
+    fz_always(ctx) {
         fz_drop_output(ctx, out);
-        fz_drop_buffer(ctx, res);
     }
-    fz_catch(ctx)
-    {
-        text = PyUnicode_FromString("");
-        return text;
+    fz_catch(ctx) {
+        return NULL;
     }
-    return text;
+    fz_terminate_buffer(gctx, res);
+    return res;
 }
 
 //-----------------------------------------------------------------------------
@@ -468,10 +456,11 @@ PyObject *JM_merge_resources(fz_context *ctx, pdf_page *page, pdf_obj *temp_res)
     if (pdf_is_dict(ctx, main_fonts))  // has page any fonts yet?
     {
         for (i = 0; i < pdf_dict_len(ctx, main_fonts); i++)
-        {   // get highest number of fonts named /F?
+        {   // get highest number of fonts named /Fxxx
             char *font = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, main_fonts, i));
             if (strncmp(font, "F", 1) != 0) continue;
-            if (strcmp(start_str, font) < 0) strcpy(start_str, font);
+            if (strcmp(start_str, font) < 0 || strlen(start_str) < strlen(font))
+                strcpy(start_str, font);
         }
         while (strcmp(text, start_str) < 0)
         {   // compute next available number
@@ -486,8 +475,107 @@ PyObject *JM_merge_resources(fz_context *ctx, pdf_page *page, pdf_obj *temp_res)
     {   // copy over renumbered font objects
         fz_snprintf(text, sizeof(text), "F%d", i + max_fonts);
         pdf_obj *val = pdf_dict_get_val(ctx, temp_fonts, i);
-        pdf_dict_puts_drop(ctx, main_fonts, text, val);
+        pdf_dict_puts(ctx, main_fonts, text, val);
     }
     return Py_BuildValue("ii", max_alp, max_fonts); // next available numbers
 }
+
+
+//-----------------------------------------------------------------------------
+// version of fz_show_string, which also covers UCDN script
+//-----------------------------------------------------------------------------
+fz_matrix JM_show_string(fz_context *ctx, fz_text *text, fz_font *user_font, fz_matrix trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language, int script)
+{
+    fz_font *font;
+    int gid, ucs;
+    float adv;
+
+    while (*s)
+    {
+        s += fz_chartorune(&ucs, s);
+        gid = fz_encode_character_with_fallback(ctx, user_font, ucs, script, language, &font);
+        fz_show_glyph(ctx, text, font, trm, gid, ucs, wmode, bidi_level, markup_dir, language);
+        adv = fz_advance_glyph(ctx, font, gid, wmode);
+        if (wmode == 0)
+            trm = fz_pre_translate(trm, adv, 0);
+        else
+            trm = fz_pre_translate(trm, 0, -adv);
+    }
+
+    return trm;
+}
+
+
+//-----------------------------------------------------------------------------
+// return a fz_font from a number of parameters
+//-----------------------------------------------------------------------------
+fz_font *JM_get_font(fz_context *ctx,
+    char *fontname,
+    char *fontfile,
+    PyObject *fontbuffer,
+    int script,
+    int lang,
+    int ordering,
+    int is_bold,
+    int is_italic,
+    int is_serif)
+{
+    const unsigned char *data = NULL;
+    int size, index=0;
+    fz_buffer *res = NULL;
+    fz_font *font = NULL;
+    fz_try(ctx) {
+        if (fontfile) goto have_file;
+        if (EXISTS(fontbuffer)) goto have_buffer;
+        if (ordering > -1) goto have_cjk;
+        if (fontname) goto have_base14;
+        goto have_noto;
+
+        // Base-14 font
+        have_base14:;
+        data = fz_lookup_base14_font(ctx, fontname, &size);
+        if (data) font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
+        if(font) goto fertig;
+
+        data = fz_lookup_builtin_font(gctx, fontname, is_bold, is_italic, &size);
+        if (data) font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
+        goto fertig;
+
+        // CJK font
+        have_cjk:;
+        data = fz_lookup_cjk_font(ctx, ordering, &size, &index);
+        if (data) font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+        goto fertig;
+
+        // fontfile
+        have_file:;
+        font = fz_new_font_from_file(ctx, NULL, fontfile, index, 0);
+        goto fertig;
+
+        // fontbuffer
+        have_buffer:;
+        res = JM_BufferFromBytes(ctx, fontbuffer);
+        font = fz_new_font_from_buffer(ctx, NULL, res, index, 0);
+        goto fertig;
+
+        // Check for NOTO font
+        have_noto:;
+        data = fz_lookup_noto_font(ctx, script, lang, &size, &index);
+        if (data) font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+        if (font) goto fertig;
+        font = fz_load_fallback_font(ctx, script, lang, is_serif, is_bold, is_italic);
+        goto fertig;
+
+        fertig:;
+        if (!font) THROWMSG("could not find a matching font");
+    }
+    fz_always(ctx) {
+        fz_drop_buffer(ctx, res);
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
+    return font;
+}
+
 %}

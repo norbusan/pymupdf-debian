@@ -1046,7 +1046,9 @@ In v1.14.0, annotation handling has been considerably extended:
 How to Add and Modify Annotations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In PyMuPDF, new annotations are added via :ref:`Page` methods. To keep code duplication effort small, we only offer a minimal set of options here. For example, to add a 'Circle' annotation, only the containing rectangle can be specified. The result is a circle (or ellipsis) with white interior, black border and a line width of 1, exactly fitting into the rectangle. To adjust the annot's appearance, :ref:`Annot` methods must then be used. After having made all required changes, the annot's :meth:`Annot.update` methods must be invoked to finalize all your changes.
+In PyMuPDF, new annotations can be added added via :ref:`Page` methods. Once an annotation exists, it can be modified to a large extent using methods of the :ref:`Annot` class.
+
+In contrast to many other tools, initial insert of annotations happens with a minimum number of properties. We leave it to the programmer to e.g. set attributes like author, creation date or subject.
 
 As an overview for these capabilities, look at the following script that fills a PDF page with most of the available annotations. Look in the next sections for more special situations:
 
@@ -1707,23 +1709,33 @@ It features maintaining any metadata, table of contents and links contained in t
 
 How to Deal with Messages Issued by MuPDF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Since PyMuPDF v1.16.0, error messages issued by the underlying MuPDF library are being redirected to the Python standard device *sys.stderr*. So you can handle them like any other output going to these devices.
+Since PyMuPDF v1.16.0, **error messages** issued by the underlying MuPDF library are being redirected to the Python standard device *sys.stderr*. So you can handle them like any other output going to this devices.
+
+In addition, these messages go to the internal buffer together with any MuPDF warnings -- see below.
 
 We always prefix these messages with an identifying string *"mupdf:"*.
+If you prefer to not see recoverable MuPDF errors at all, issue the command ``fitz.TOOLS.mupdf_display_errors(False)``.
 
-MuPDF warnings continue to be stored in an internal buffer and can be viewed using :meth:`Tools.mupdf_warnings`. Please note that MuPDF errors may or may not lead to Python exceptions. In other words, you may see error messages from which MuPDF can recover and continue processing.
+MuPDF warnings continue to be stored in an internal buffer and can be viewed using :meth:`Tools.mupdf_warnings`.
 
-Example output for a **recoverable error**. We are opening a damaged PDF, but MuPDF is able to repair it and gives us a few information on what happened. Then we illustrate how to find out whether the document can later be saved incrementally:
+Please note that MuPDF errors may or may not lead to Python exceptions. In other words, you may see error messages from which MuPDF can recover and continue processing.
+
+Example output for a **recoverable error**. We are opening a damaged PDF, but MuPDF is able to repair it and gives us a few information on what happened. Then we illustrate how to find out whether the document can later be saved incrementally. Checking the :attr:`Document.isDirty` attribute at this point also indicates that the open had to repair the document:
 
 >>> import fitz
 >>> doc = fitz.open("damaged-file.pdf")  # leads to a sys.stderr message:
 mupdf: cannot find startxref
 >>> print(fitz.TOOLS.mupdf_warnings())  # check if there is more info:
+cannot find startxref
 trying to repair broken xref
 repairing PDF document
 object missing 'endobj' token
 >>> doc.can_save_incrementally()  # this is to be expected:
 False
+>>> # the following indicates whether there are updates so far
+>>> # this is the case because of the repair actions:
+>>> doc.isDirty
+True
 >>> # the document has nevertheless been created:
 >>> doc
 fitz.Document('damaged-file.pdf')

@@ -29,11 +29,13 @@ Have a look at the :ref:`FAQ` section to see some pixmap usage "at work".
 :meth:`Pixmap.getImageData`   return a memory area in a variety of formats
 :meth:`Pixmap.getPNGData`     return a PNG as a memory area
 :meth:`Pixmap.invertIRect`    invert the pixels of a given area
+:meth:`Pixmap.pillowWrite`    save as image using pillow (experimental)
+:meth:`Pixmap.pillowData`     write image stream using pillow (experimental)
 :meth:`Pixmap.pixel`          return the value of a pixel
+:meth:`Pixmap.setAlpha`       set alpha values
 :meth:`Pixmap.setPixel`       set the color of a pixel
 :meth:`Pixmap.setRect`        set the color of a rectangle
 :meth:`Pixmap.setResolution`  set the image resolution
-:meth:`Pixmap.setAlpha`       set alpha values
 :meth:`Pixmap.shrink`         reduce size keeping proportions
 :meth:`Pixmap.tintWith`       tint a pixmap with a color
 :meth:`Pixmap.writeImage`     save a pixmap in a variety of formats
@@ -92,9 +94,9 @@ Have a look at the :ref:`FAQ` section to see some pixmap usage "at work".
 
       :arg irect_like clip: a region of the source pixmap to take the copy from.
 
-      .. note:: If width or height are not *de facto* integers (meaning e.g. *round(width) != width*), then pixmap will be created with *alpha = 1*.
+      .. note:: If width or height are not *de facto* integers (meaning e.g. *float(int(width) != width*), then pixmap will be created with *alpha = 1*.
 
-   .. method:: __init__(self, source, alpha = 1)
+   .. method:: __init__(self, source, alpha=1)
 
       **Copy and add or drop alpha:** Copy *source* and add or drop its alpha channel. Identical copy if *alpha* equals *source.alpha*. If an alpha channel is added, its values will be set to 255.
 
@@ -265,7 +267,6 @@ Have a look at the :ref:`FAQ` section to see some pixmap usage "at work".
 
    .. method:: writeImage(filename, output=None)
 
-
       Save pixmap as an image file. Depending on the output chosen, only some or all colorspaces are supported and different file extensions can be chosen. Please see the table below. Since MuPDF v1.10a the *savealpha* option is no longer supported and will be silently ignored.
 
       :arg str filename: The filename to save to. The filename's extension determines the image format, if not overriden by the output parameter.
@@ -291,6 +292,23 @@ Have a look at the :ref:`FAQ` section to see some pixmap usage "at work".
       Equal to *pix.getImageData("png")*.
 
       :rtype: bytes
+
+   ..  method:: pillowWrite(*args, **kwargs)
+
+      *(New in v1.17.3)*
+
+      Write the pixmap as an image file using Pillow. Use this method for image formats or extended image features not supported by MuPDF. Examples are
+
+      * Formats JPEG, JPX, J2K, WebP, etc.
+      * Storing EXIF or dpi information.
+      * If you do not provide dpi information, the values stored with the pixmap are automatically used.
+
+      A simple example: ``pix.pillowWrite("some.jpg", optimize=True, dpi=(150,150))``. For details on possible parameters see the Pillow documentation.
+
+   ..  method:: pillowData(*args, **kwargs)
+
+      Return the pixmap as a bytes object in the specified format using Pillow. For example ``stream = pix.pillowData(format="JPEG", optimize=True)``. For details on possible parameters see the Pillow documentation.
+
 
    .. attribute:: alpha
 
