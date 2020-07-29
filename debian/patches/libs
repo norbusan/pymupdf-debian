@@ -1,12 +1,18 @@
 Description: Link shared library with additional libs
 
+---
+ setup.py |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
 --- a/setup.py
 +++ b/setup.py
-@@ -26,6 +26,7 @@ if sys.platform.startswith("linux"):
+@@ -25,7 +25,8 @@ if sys.platform.startswith("linux"):
+             "mupdf",
              #'crypto', #openssl is required by mupdf on archlinux
              #'jbig2dec', 'openjp2', 'jpeg', 'freetype',
-             "mupdf-third",
-+            "harfbuzz", "jbig2dec", "jpeg", "freetype", "png16", "openjp2"
+-            "mupdf-third",
++            #"mupdf-third",
++            "harfbuzz", "jbig2dec", "jpeg", "freetype", "png16", "openjp2", "mujs",
          ],  # the libraries to link with
      )
  elif sys.platform.startswith(("darwin", "freebsd")):
