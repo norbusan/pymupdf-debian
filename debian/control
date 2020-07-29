@@ -1,5 +1,6 @@
 Source: pymupdf
 Section: python
+Priority: optional
 Maintainer: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
 Uploaders: Johannes 'josch' Schauer <josch@debian.org>
 Homepage: https://github.com/pymupdf/PyMuPDF
@@ -10,7 +11,6 @@ Build-Depends: debhelper-compat (= 12), dh-python, python3-setuptools, python3-a
 Rules-Requires-Root: no
 
 Package: python3-fitz
-Priority: optional
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}
 Provides: ${python3:Provides}
